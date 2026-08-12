@@ -1,0 +1,360 @@
+import Link from 'next/link';
+import { notFound, redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import DoctorCorrectionForm from './CorrectionForm';
+import ReviewActionGate from './ReviewActionGate';
+
+export const revalidate = 0;
+
+async function markAsReviewed(formData: FormData) {
+  'use server';
+  const intakeId = formData.get('intake_id') as string;
+  if (!intakeId) return;
+
+  const supabase = await createClient();
+
+  // 1. Update intake status
+  await supabase
+    .from('intakes')
+    .update({ status: 'doctor_reviewed' })
+    .eq('id', intakeId);
+
+  // 2. ICMR Compliance: Write audit log for Doctor Review
+  try {
+    await supabase.from('audit_logs').insert([
+      {
+        intake_id: intakeId,
+        event_type: 'DOCTOR_REVIEW',
+        actor: 'DOCTOR',
+        details: {
+          action: 'MARK_AS_REVIEWED',
+          reviewed_at: new Date().toISOString(),
+        },
+      },
+    ]);
+  } catch (e) {
+    console.warn('Audit log write skipped (optional table):', e);
+  }
+
+  redirect('/doctor/dashboard');
+}
+
+export default async function DoctorIntakeDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }> | { id: string };
+}) {
+  const resolvedParams = await params;
+  const id = resolvedParams?.id;
+
+  const supabase = await createClient();
+
+  // Primary query for essential intake data
+  const { data: intake, error } = await supabase
+    .from('intakes')
+    .select(`
+      id,
+      raw_text,
+      structured_data,
+      urgency_level,
+      red_flags,
+      status,
+      created_at,
+      patients (
+        id,
+        name,
+        age,
+        phone
+      )
+    `)
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error || !intake) {
+    console.error(`Intake detail not found or query error for id [${id}]:`, error?.message);
+    notFound();
+  }
+
+  // Optional voice columns fetch
+  let is_voice_intake = false;
+  let audio_storage_path = null;
+  let voice_asr_confidence = null;
+
+  try {
+    const { data: voiceMeta } = await supabase
+      .from('intakes')
+      .select('is_voice_intake, audio_storage_path, voice_asr_confidence')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (voiceMeta) {
+      is_voice_intake = !!voiceMeta.is_voice_intake;
+      audio_storage_path = voiceMeta.audio_storage_path || null;
+      voice_asr_confidence = voiceMeta.voice_asr_confidence || null;
+    }
+  } catch {
+    // Phase 2 columns not created yet in DB
+  }
+
+  const patient = intake.patients as any;
+  const structured = intake.structured_data as any;
+  const urgency = intake.urgency_level;
+  const confidence = structured?.extraction_confidence || 'medium';
+
+  // Generate short-lived signed URL for private audio if audio_storage_path exists
+  let audioSignedUrl = null;
+  if (audio_storage_path) {
+    if (audio_storage_path.startsWith('http')) {
+      audioSignedUrl = audio_storage_path;
+    } else {
+      try {
+        const { data: signedData } = await supabase.storage
+          .from('patient-voice-notes')
+          .createSignedUrl(audio_storage_path, 3600);
+        audioSignedUrl = signedData?.signedUrl || null;
+      } catch {
+        // storage bucket optional
+      }
+    }
+  }
+
+  return (
+    <div className="space-y-6 max-w-4xl mx-auto py-4">
+      {/* Navigation Header */}
+      <div className="flex items-center justify-between">
+        <Link
+          href="/doctor/dashboard"
+          className="text-sm text-slate-600 hover:text-slate-900 font-semibold flex items-center gap-1 bg-white border border-slate-200 px-4 py-2 rounded-xl shadow-sm"
+        >
+          ← Back to Queue
+        </Link>
+        <div className="flex items-center gap-2">
+          {is_voice_intake && (
+            <span className="bg-purple-100 text-purple-800 text-xs font-bold px-3 py-1 rounded-full border border-purple-200">
+              🎙️ Voice Note Intake
+            </span>
+          )}
+          <span className="text-xs text-slate-400 font-mono">
+            ID: {intake.id.slice(0, 8)}...
+          </span>
+        </div>
+      </div>
+
+      {/* Patient Banner */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-1">
+            {patient?.name || 'Unknown Patient'}
+          </h2>
+          <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+            <span>Age: <strong>{patient?.age} yrs</strong></span>
+            <span>•</span>
+            <span>Phone: <strong>{patient?.phone}</strong></span>
+            <span>•</span>
+            <span>Submitted: <strong>{new Date(intake.created_at).toLocaleString()}</strong></span>
+          </div>
+        </div>
+
+        {/* Urgency Badge */}
+        <div>
+          {urgency === 'high' && (
+            <span className="inline-flex items-center gap-2 bg-red-600 text-white font-extrabold text-sm px-4 py-2 rounded-xl shadow">
+              🔴 HIGH URGENCY
+            </span>
+          )}
+          {urgency === 'medium' && (
+            <span className="inline-flex items-center gap-2 bg-amber-500 text-white font-bold text-sm px-4 py-2 rounded-xl shadow">
+              🟡 MEDIUM URGENCY
+            </span>
+          )}
+          {urgency === 'low' && (
+            <span className="inline-flex items-center gap-2 bg-emerald-600 text-white font-semibold text-sm px-4 py-2 rounded-xl shadow">
+              🟢 LOW URGENCY
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Voice Note Audio Player Section */}
+      {is_voice_intake && (
+        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5 shadow-sm space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-purple-950 font-bold text-base flex items-center gap-2">
+              🎙️ Patient Voice Note Recording
+            </h3>
+            {voice_asr_confidence === 'low' && (
+              <span className="text-xs bg-red-100 text-red-800 font-bold px-2.5 py-1 rounded-md border border-red-200">
+                ⚠️ Low ASR Confidence
+              </span>
+            )}
+          </div>
+
+          {audioSignedUrl ? (
+            <div className="bg-white p-3 rounded-xl border border-purple-100 shadow-inner">
+              <audio controls src={audioSignedUrl} className="w-full">
+                Your browser does not support the audio element.
+              </audio>
+            </div>
+          ) : (
+            <p className="text-xs text-purple-700 italic">
+              Audio recording available on WhatsApp or processing storage link.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Low Confidence Warning Banner */}
+      {(confidence === 'low' || confidence === 'medium') && (
+        <div className="bg-amber-50 border-2 border-amber-400 p-4 rounded-2xl text-amber-900 font-medium text-sm flex items-start gap-3 shadow-sm">
+          <span className="text-2xl">⚠️</span>
+          <div>
+            <strong className="block text-amber-950 font-bold mb-0.5">
+              Reviewer Note: AI extraction confidence is {confidence.toUpperCase()}
+            </strong>
+            Mandatory Clinical Safeguard: Please open and inspect the raw transcript section below before marking as reviewed.
+          </div>
+        </div>
+      )}
+
+      {/* Red Flags Alert Card */}
+      {intake.red_flags && intake.red_flags.length > 0 && (
+        <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-5 shadow-sm space-y-2">
+          <h3 className="text-red-900 font-bold text-base flex items-center gap-2">
+            🚨 Deterministic Protocol Red Flags Triggered:
+          </h3>
+          <ul className="list-disc list-inside space-y-1 text-sm text-red-800 font-medium">
+            {intake.red_flags.map((flag: string, idx: number) => (
+              <li key={idx}>{flag}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Structured Clinical Summary Card */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-5">
+        <div className="flex flex-wrap items-center justify-between border-b border-slate-100 pb-3 gap-2">
+          <div className="flex items-center gap-3">
+            <h3 className="text-lg font-bold text-slate-900">
+              Structured Clinical Summary (Decision Support)
+            </h3>
+            <span className={`text-xs px-2.5 py-1 rounded-md font-semibold ${
+              confidence === 'high' ? 'bg-emerald-100 text-emerald-800' :
+              confidence === 'medium' ? 'bg-blue-100 text-blue-800' :
+              'bg-amber-100 text-amber-800'
+            }`}>
+              AI Confidence: {confidence.toUpperCase()}
+            </span>
+          </div>
+
+          <DoctorCorrectionForm
+            intakeId={intake.id}
+            initialStructured={structured}
+            currentUrgency={intake.urgency_level}
+          />
+        </div>
+
+        {structured ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+            <div>
+              <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                Duration
+              </span>
+              <p className="font-semibold text-slate-800 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                {structured.duration || 'Not specified'}
+              </p>
+            </div>
+
+            <div>
+              <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                Severity (Patient Described)
+              </span>
+              <p className="font-semibold text-slate-800 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                {structured.severity || 'Not specified'}
+              </p>
+            </div>
+
+            <div className="md:col-span-2">
+              <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                Primary Symptoms
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {structured.primary_symptoms && structured.primary_symptoms.length > 0 ? (
+                  structured.primary_symptoms.map((sym: string, i: number) => (
+                    <span
+                      key={i}
+                      className="bg-emerald-50 text-emerald-900 font-semibold px-3 py-1.5 rounded-lg border border-emerald-200 text-sm"
+                    >
+                      {sym}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-slate-400 italic">None stated</span>
+                )}
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                Associated Symptoms
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {structured.associated_symptoms && structured.associated_symptoms.length > 0 ? (
+                  structured.associated_symptoms.map((sym: string, i: number) => (
+                    <span
+                      key={i}
+                      className="bg-slate-100 text-slate-800 font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-sm"
+                    >
+                      {sym}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-slate-400 italic">None stated</span>
+                )}
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                Relevant Medical History
+              </span>
+              <p className="text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed">
+                {structured.relevant_history || 'None stated'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-slate-500 italic">Processing structured extraction...</p>
+        )}
+      </div>
+
+      {/* Collapsible Original Raw Transcript (Enforced Gate ID) */}
+      <details id="raw-transcript-details" className="bg-white border border-slate-200 rounded-2xl shadow-sm group">
+        <summary className="p-5 font-bold text-slate-800 cursor-pointer flex items-center justify-between select-none">
+          <span>📄 Original Patient Raw Transcript / ASR Text (Click to Expand & Verify)</span>
+          <span className="text-slate-400 text-sm group-open:rotate-180 transition-transform">
+            ▼
+          </span>
+        </summary>
+        <div className="p-5 pt-0 border-t border-slate-100">
+          <div className="bg-slate-900 text-slate-100 p-4 rounded-xl font-mono text-sm leading-relaxed whitespace-pre-wrap mt-3">
+            {intake.raw_text}
+          </div>
+        </div>
+      </details>
+
+      {/* Action Footer with Review Gate */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div className="text-sm text-slate-600">
+          Status: <strong className="text-slate-900 capitalize">{intake.status.replace('_', ' ')}</strong>
+        </div>
+
+        <ReviewActionGate
+          intakeId={intake.id}
+          confidence={confidence}
+          status={intake.status}
+          markAsReviewedAction={markAsReviewed}
+        />
+      </div>
+    </div>
+  );
+}
