@@ -15,6 +15,8 @@ export async function POST(request: Request) {
     let audioBuffer: Buffer | null = null;
     let intake_id: string | null = null;
     let media_url: string | null = null;
+    let mimeType = 'audio/webm';
+    let fileExtension = 'webm';
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await request.formData();
@@ -22,6 +24,10 @@ export async function POST(request: Request) {
       if (file) {
         const arrayBuffer = await file.arrayBuffer();
         audioBuffer = Buffer.from(arrayBuffer);
+        mimeType = file.type || 'audio/webm';
+        if (mimeType.includes('ogg')) fileExtension = 'ogg';
+        else if (mimeType.includes('mp4') || mimeType.includes('m4a')) fileExtension = 'm4a';
+        else if (mimeType.includes('wav')) fileExtension = 'wav';
       }
     } else {
       try {
@@ -35,46 +41,51 @@ export async function POST(request: Request) {
 
     // If media_url provided (WhatsApp), fetch audio buffer
     if (media_url && !audioBuffer) {
-      console.log(`🎙️ Fetching audio note from URL ${media_url}...`);
+      console.log(`🎙️ Fetching WhatsApp audio note from URL: ${media_url}...`);
       const audioRes = await fetch(media_url);
       if (audioRes.ok) {
         const audioArrayBuffer = await audioRes.arrayBuffer();
         audioBuffer = Buffer.from(audioArrayBuffer);
+        fileExtension = 'ogg';
+        mimeType = 'audio/ogg';
       }
     }
 
-    if (!audioBuffer) {
-      return NextResponse.json({ error: 'No valid audio file or media_url received' }, { status: 400 });
+    if (!audioBuffer || audioBuffer.length === 0) {
+      return NextResponse.json({ error: 'No valid audio buffer received' }, { status: 400 });
     }
 
-    // Transcribe audio using Groq Whisper API
-    const audioFile = new File([new Uint8Array(audioBuffer)], 'voice_intake.webm', { type: 'audio/webm' });
+    console.log(`🎙️ Transcribing ${audioBuffer.length} bytes of audio using Groq Whisper Large-v3 (${fileExtension})...`);
+
+    // Create File object for Groq Whisper ASR API
+    const audioFile = new File([new Uint8Array(audioBuffer)], `voice_recording.${fileExtension}`, { type: mimeType });
 
     let transcribedText = '';
     try {
       const transcription = await groq.audio.transcriptions.create({
         file: audioFile,
         model: 'whisper-large-v3-turbo',
-        prompt: 'Patient describing health symptoms in Hindi, Angika, Bhojpuri, Maithili, Magahi, Devanagari, or English.',
+        prompt: 'Patient describing medical symptoms in Hindi, Devanagari, Angika, Bhojpuri, Maithili, Magahi, Tamil, Kannada, Telugu, Marathi, Bengali, Punjabi, or English.',
         response_format: 'json',
         temperature: 0.0,
       });
 
       transcribedText = transcription.text.trim();
+      console.log(`✅ Groq Whisper Transcription Success: "${transcribedText}"`);
     } catch (whisperErr: any) {
-      console.error('Groq Whisper transcription error:', whisperErr);
-      transcribedText = '[Voice recording captured in regional dialect - Audio file saved for doctor review]';
+      console.error('❌ Groq Whisper ASR API Error:', whisperErr);
+      transcribedText = `[Voice recording captured in regional dialect - Audio file saved for doctor review]`;
     }
 
-    // If intake_id exists, update intake record
+    // If intake_id exists, update intake record in Supabase
     if (intake_id) {
-      const storagePath = `voice-intakes/${intake_id}.ogg`;
+      const storagePath = `voice-intakes/${intake_id}.${fileExtension}`;
       try {
         await supabase.storage
           .from('patient-voice-notes')
-          .upload(storagePath, audioBuffer, { contentType: 'audio/ogg', upsert: true });
+          .upload(storagePath, audioBuffer, { contentType: mimeType, upsert: true });
       } catch (e) {
-        console.warn('Storage upload skipped:', e);
+        console.warn('Storage upload warning:', e);
       }
 
       await supabase
@@ -86,6 +97,7 @@ export async function POST(request: Request) {
         })
         .eq('id', intake_id);
 
+      // Trigger background LLM translation & structuring
       const origin = new URL(request.url).origin;
       fetch(`${origin}/api/structure-intake`, {
         method: 'POST',
