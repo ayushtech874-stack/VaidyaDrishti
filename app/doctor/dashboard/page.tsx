@@ -32,38 +32,75 @@ export default async function DoctorDashboardPage({
 
   const supabase = await createClient();
 
-  const { data: intakes, error } = await supabase
-    .from('intakes')
-    .select(`
-      id,
-      raw_text,
-      structured_data,
-      urgency_level,
-      red_flags,
-      status,
-      created_at,
-      patients (
-        name,
-        age,
-        phone
-      )
-    `);
+  // Get currently logged-in authenticated user
+  const { data: { user } } = await supabase.auth.getUser();
 
+  let doctorProfile: any = null;
+  let clinicProfile: any = null;
+
+  if (user) {
+    // Fetch doctor record matching user id
+    const { data: docData } = await supabase
+      .from('doctors')
+      .select('id, name, email, rmp_registration_number, clinic_id, role')
+      .eq('id', user.id)
+      .single();
+
+    if (docData) {
+      doctorProfile = docData;
+      if (docData.clinic_id) {
+        const { data: clinicData } = await supabase
+          .from('clinics')
+          .select('name, code')
+          .eq('id', docData.clinic_id)
+          .single();
+        clinicProfile = clinicData;
+      }
+    }
+  }
+
+  // Fetch intakes filtered by logged-in doctor's clinic_id
+  let query = supabase.from('intakes').select(`
+    id,
+    clinic_id,
+    raw_text,
+    structured_data,
+    urgency_level,
+    red_flags,
+    status,
+    created_at,
+    patients (
+      name,
+      age,
+      phone
+    )
+  `);
+
+  // Multi-tenant isolation: filter intakes by doctor's clinic_id if present
+  if (doctorProfile?.clinic_id && doctorProfile.role !== 'super_admin') {
+    query = query.eq('clinic_id', doctorProfile.clinic_id);
+  }
+
+  const { data: intakes, error } = await query;
   const allIntakes = intakes || [];
 
-  // Filter based on active tab: 'pending' (Pending Review) vs 'history' (Reviewed)
+  // Filter based on active tab: 'pending' vs 'history'
   const pendingIntakes = allIntakes.filter((i: any) => i.status !== 'doctor_reviewed');
   const reviewedIntakes = allIntakes.filter((i: any) => i.status === 'doctor_reviewed');
 
   const displayedList = activeTab === 'history' ? reviewedIntakes : pendingIntakes;
 
-  // Sort intakes: urgency_level (high first, medium, low) then created_at (newest first)
+  // Sort intakes: urgency_level (high first) then created_at (newest first)
   const sortedIntakes = displayedList.sort((a: any, b: any) => {
     const rankA = getUrgencyRank(a.urgency_level);
     const rankB = getUrgencyRank(b.urgency_level);
     if (rankA !== rankB) return rankA - rankB;
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
+
+  const doctorDisplayName = doctorProfile?.name || user?.email || 'On-Duty RMP Doctor';
+  const doctorRmpNo = doctorProfile?.rmp_registration_number || 'VERIFIED-RMP';
+  const clinicDisplayName = clinicProfile?.name || 'Assigned Clinic';
 
   return (
     <div className="space-y-6">
@@ -73,8 +110,14 @@ export default async function DoctorDashboardPage({
           <h2 className="text-2xl font-bold text-slate-900">
             Triage & Intake Portal
           </h2>
-          <p className="text-sm text-slate-500">
-            Assigned to: <strong className="text-emerald-700 font-semibold">Dr. Ramesh Chandra (On-Duty RMP)</strong>
+          <p className="text-sm text-slate-600">
+            Assigned RMP: <strong className="text-emerald-700 font-semibold">{doctorDisplayName}</strong>{' '}
+            <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded ml-1">
+              {doctorRmpNo}
+            </span>
+          </p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Clinic Queue: <strong>{clinicDisplayName}</strong>
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -135,7 +178,7 @@ export default async function DoctorDashboardPage({
         <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-500">
           {activeTab === 'history'
             ? 'No treated intakes in history yet.'
-            : '🎉 All caught up! No pending patients waiting for triage review.'}
+            : '🎉 All caught up! No pending patients waiting for triage review in your clinic queue.'}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
