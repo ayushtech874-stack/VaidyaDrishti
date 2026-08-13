@@ -28,7 +28,7 @@ export default async function DoctorDashboardPage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const resolvedParams = await searchParams;
-  const activeTab = resolvedParams?.tab || 'pending'; // 'pending' | 'history'
+  const activeTab = resolvedParams?.tab || 'pending'; // 'pending' | 'in_progress' | 'history'
 
   const supabase = await createClient();
 
@@ -39,7 +39,6 @@ export default async function DoctorDashboardPage({
   let clinicProfile: any = null;
 
   if (user) {
-    // Fetch doctor record matching user id
     const { data: docData } = await supabase
       .from('doctors')
       .select('id, name, email, rmp_registration_number, clinic_id, role')
@@ -59,7 +58,7 @@ export default async function DoctorDashboardPage({
     }
   }
 
-  // Fetch intakes cleanly with graceful fallback for legacy database schemas
+  // Fetch intakes
   let query = supabase.from('intakes').select(`
     id,
     clinic_id,
@@ -70,6 +69,7 @@ export default async function DoctorDashboardPage({
     status,
     created_at,
     patients (
+      id,
       name,
       age,
       phone
@@ -93,6 +93,7 @@ export default async function DoctorDashboardPage({
       status,
       created_at,
       patients (
+        id,
         name,
         age,
         phone
@@ -103,18 +104,26 @@ export default async function DoctorDashboardPage({
     allIntakes = primaryData || [];
   }
 
-  // Filter based on active tab: 'pending' vs 'history'
-  const pendingIntakes = allIntakes.filter((i: any) => i.status !== 'doctor_reviewed');
+  // Filter based on active tab: 'pending' vs 'in_progress' vs 'history'
+  const pendingIntakes = allIntakes.filter((i: any) => i.status !== 'doctor_reviewed' && i.status !== 'in_progress');
+  const inProgressIntakes = allIntakes.filter((i: any) => i.status === 'in_progress');
   const reviewedIntakes = allIntakes.filter((i: any) => i.status === 'doctor_reviewed');
 
-  const displayedList = activeTab === 'history' ? reviewedIntakes : pendingIntakes;
+  let displayedList: any[] = [];
+  if (activeTab === 'history') {
+    displayedList = reviewedIntakes;
+  } else if (activeTab === 'in_progress') {
+    displayedList = inProgressIntakes;
+  } else {
+    displayedList = pendingIntakes;
+  }
 
-  // Sort intakes: urgency_level (high first) then created_at (newest first)
+  // Sort active queue: Urgency level (high first) then creation date
   const sortedIntakes = displayedList.sort((a: any, b: any) => {
     const rankA = getUrgencyRank(a.urgency_level);
     const rankB = getUrgencyRank(b.urgency_level);
     if (rankA !== rankB) return rankA - rankB;
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
   });
 
   const doctorDisplayName = doctorProfile?.name || user?.email || 'On-Duty RMP Doctor';
@@ -151,21 +160,37 @@ export default async function DoctorDashboardPage({
         </div>
       </div>
 
-      {/* Tabs Navigation: Pending Queue vs History */}
-      <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
+      {/* 3-Tab Navigation: Active Queue vs In Examination vs Treated & Cured History */}
+      <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-2">
         <Link
           href="/doctor/dashboard?tab=pending"
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition ${
-            activeTab !== 'history'
+            activeTab === 'pending'
               ? 'bg-emerald-600 text-white shadow-md'
               : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
           }`}
         >
-          <span>📋 Active Queue (Left to Treat)</span>
+          <span>📋 Active Waiting Queue</span>
           <span className={`text-xs px-2 py-0.5 rounded-full ${
-            activeTab !== 'history' ? 'bg-emerald-800 text-white' : 'bg-slate-200 text-slate-700'
+            activeTab === 'pending' ? 'bg-emerald-800 text-white' : 'bg-slate-200 text-slate-700'
           }`}>
             {pendingIntakes.length}
+          </span>
+        </Link>
+
+        <Link
+          href="/doctor/dashboard?tab=in_progress"
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition ${
+            activeTab === 'in_progress'
+              ? 'bg-amber-500 text-white shadow-md'
+              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+          }`}
+        >
+          <span>👀 Under Examination</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full ${
+            activeTab === 'in_progress' ? 'bg-amber-700 text-white' : 'bg-slate-200 text-slate-700'
+          }`}>
+            {inProgressIntakes.length}
           </span>
         </Link>
 
@@ -177,7 +202,7 @@ export default async function DoctorDashboardPage({
               : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
           }`}
         >
-          <span>📚 Treated History</span>
+          <span>✅ Treated & Cured History</span>
           <span className={`text-xs px-2 py-0.5 rounded-full ${
             activeTab === 'history' ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-700'
           }`}>
@@ -186,54 +211,80 @@ export default async function DoctorDashboardPage({
         </Link>
       </div>
 
-      {/* Intake Cards List */}
+      {/* Intake Cards List with Queue Position Numbering & Reordering */}
       {sortedIntakes.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-500">
           {activeTab === 'history'
-            ? 'No treated intakes in history yet.'
-            : '🎉 All caught up! No pending patients waiting for triage review in your clinic queue.'}
+            ? 'No treated & cured patient records in history yet.'
+            : activeTab === 'in_progress'
+            ? 'No patients currently under examination.'
+            : '🎉 All caught up! No pending patients waiting in your clinic queue.'}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {sortedIntakes.map((intake: any) => {
+          {sortedIntakes.map((intake: any, index: number) => {
             const urgency = intake.urgency_level;
             const patient = intake.patients;
-            const isReviewed = intake.status === 'doctor_reviewed';
+            const status = intake.status;
+            const queuePosition = index + 1;
 
             return (
-              <Link
+              <div
                 key={intake.id}
-                href={`/doctor/intake/${intake.id}`}
-                className={`block bg-white border rounded-2xl p-5 shadow-sm transition hover:shadow-md ${
+                className={`bg-white border rounded-2xl p-5 shadow-sm transition hover:shadow-md ${
                   urgency === 'high'
-                    ? 'border-red-300 hover:border-red-400 bg-red-50/20'
+                    ? 'border-red-300 bg-red-50/20'
                     : urgency === 'medium'
-                    ? 'border-amber-300 hover:border-amber-400 bg-amber-50/20'
-                    : 'border-slate-200 hover:border-slate-300'
+                    ? 'border-amber-300 bg-amber-50/20'
+                    : 'border-slate-200'
                 }`}
               >
-                <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold text-slate-900 text-lg">
-                        {patient?.name || 'Unknown Patient'}
-                      </span>
-                      <span className="text-sm text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full font-medium">
-                        Age: {patient?.age} yrs
-                      </span>
-                      {isReviewed && (
-                        <span className="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-semibold">
-                          ✓ Treated & Reviewed
-                        </span>
-                      )}
+                <div className="flex flex-wrap items-start justify-between gap-4 mb-3">
+                  <div className="flex items-start gap-3">
+                    {/* Queue Position Numbering Badge */}
+                    <div className="bg-slate-900 text-white font-extrabold text-sm px-3 py-1.5 rounded-xl flex items-center justify-center shadow-sm">
+                      #{queuePosition}
                     </div>
-                    <div className="text-xs text-slate-400">
-                      Phone: {patient?.phone} • Submitted {formatTimeAgo(intake.created_at)}
+
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Link
+                          href={`/doctor/intake/${intake.id}`}
+                          className="font-bold text-slate-900 text-lg hover:text-emerald-700 transition"
+                        >
+                          {patient?.name || 'Unknown Patient'}
+                        </Link>
+
+                        <span className="text-sm text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full font-medium">
+                          Age: {patient?.age} yrs
+                        </span>
+
+                        {/* Status Badges near Patient Name */}
+                        {status === 'doctor_reviewed' && (
+                          <span className="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-bold">
+                            ✅ Treated & Cured
+                          </span>
+                        )}
+                        {status === 'in_progress' && (
+                          <span className="text-xs bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full font-bold animate-pulse">
+                            👀 Under Examination
+                          </span>
+                        )}
+                        {status !== 'doctor_reviewed' && status !== 'in_progress' && (
+                          <span className="text-xs bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full font-semibold">
+                            ⏳ Waiting in Queue
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="text-xs text-slate-400">
+                        Phone: {patient?.phone} • Submitted {formatTimeAgo(intake.created_at)}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Urgency Badge */}
-                  <div>
+                  {/* Urgency Badge & Reordering Controls */}
+                  <div className="flex flex-wrap items-center gap-2">
                     {urgency === 'high' && (
                       <span className="inline-flex items-center gap-1.5 bg-red-600 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-full shadow-sm animate-pulse">
                         🔴 HIGH URGENCY
@@ -247,11 +298,6 @@ export default async function DoctorDashboardPage({
                     {urgency === 'low' && (
                       <span className="inline-flex items-center gap-1.5 bg-emerald-600 text-white font-semibold text-xs px-3.5 py-1.5 rounded-full">
                         🟢 LOW URGENCY
-                      </span>
-                    )}
-                    {!urgency && (
-                      <span className="inline-flex items-center gap-1 bg-slate-400 text-white text-xs px-3 py-1 rounded-full">
-                        ⏳ Processing...
                       </span>
                     )}
                   </div>
@@ -272,10 +318,42 @@ export default async function DoctorDashboardPage({
                 )}
 
                 {/* Snippet preview */}
-                <p className="text-slate-600 text-sm line-clamp-2 italic">
+                <p className="text-slate-600 text-sm line-clamp-2 italic mb-4">
                   "{intake.raw_text}"
                 </p>
-              </Link>
+
+                {/* Doctor Action Controls: Shift Order & View Details */}
+                <div className="flex flex-wrap items-center justify-between border-t border-slate-100 pt-3 gap-3">
+                  <div className="text-xs text-slate-500 font-medium flex items-center gap-2">
+                    <span>Shift Priority:</span>
+                    <form action={async () => {
+                      'use server';
+                      const s = await createClient();
+                      await s.from('intakes').update({ urgency_level: 'high' }).eq('id', intake.id);
+                    }}>
+                      <button type="submit" className="bg-red-50 hover:bg-red-100 text-red-700 font-bold px-2 py-1 rounded text-xs border border-red-200">
+                        ▲ Shift to #1 Emergency
+                      </button>
+                    </form>
+                    <form action={async () => {
+                      'use server';
+                      const s = await createClient();
+                      await s.from('intakes').update({ urgency_level: 'medium' }).eq('id', intake.id);
+                    }}>
+                      <button type="submit" className="bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold px-2 py-1 rounded text-xs border border-amber-200">
+                        🟡 Medium Priority
+                      </button>
+                    </form>
+                  </div>
+
+                  <Link
+                    href={`/doctor/intake/${intake.id}`}
+                    className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm"
+                  >
+                    Open Intake Details & Past History →
+                  </Link>
+                </div>
+              </div>
             );
           })}
         </div>

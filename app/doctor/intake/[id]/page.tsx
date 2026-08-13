@@ -13,10 +13,10 @@ async function markAsReviewed(formData: FormData) {
 
   const supabase = await createClient();
 
-  // 1. Update intake status
+  // 1. Update intake status to doctor_reviewed
   await supabase
     .from('intakes')
-    .update({ status: 'doctor_reviewed' })
+    .update({ status: 'doctor_reviewed', reviewed_at: new Date().toISOString() })
     .eq('id', intakeId);
 
   // 2. ICMR Compliance: Write audit log for Doctor Review
@@ -33,7 +33,7 @@ async function markAsReviewed(formData: FormData) {
       },
     ]);
   } catch (e) {
-    console.warn('Audit log write skipped (optional table):', e);
+    console.warn('Audit log write skipped:', e);
   }
 
   redirect('/doctor/dashboard');
@@ -75,6 +75,14 @@ export default async function DoctorIntakeDetailPage({
     notFound();
   }
 
+  // Mark as in_progress (Under Examination) if previously pending
+  if (intake.status !== 'doctor_reviewed' && intake.status !== 'in_progress') {
+    await supabase
+      .from('intakes')
+      .update({ status: 'in_progress' })
+      .eq('id', id);
+  }
+
   // Optional voice columns fetch
   let is_voice_intake = false;
   let audio_storage_path = null;
@@ -93,13 +101,26 @@ export default async function DoctorIntakeDetailPage({
       voice_asr_confidence = voiceMeta.voice_asr_confidence || null;
     }
   } catch {
-    // Phase 2 columns not created yet in DB
+    // optional columns
   }
 
   const patient = intake.patients as any;
   const structured = intake.structured_data as any;
   const urgency = intake.urgency_level;
   const confidence = structured?.extraction_confidence || 'medium';
+
+  // Fetch past cured medical history records for this patient
+  let pastHistoryList: any[] = [];
+  if (patient?.id) {
+    const { data: historyData } = await supabase
+      .from('intakes')
+      .select('id, raw_text, structured_data, urgency_level, status, created_at, reviewed_at')
+      .eq('patient_id', patient.id)
+      .neq('id', id)
+      .order('created_at', { ascending: false });
+
+    pastHistoryList = historyData || [];
+  }
 
   // Generate short-lived signed URL for private audio if audio_storage_path exists
   let audioSignedUrl = null;
@@ -126,9 +147,12 @@ export default async function DoctorIntakeDetailPage({
           href="/doctor/dashboard"
           className="text-sm text-slate-600 hover:text-slate-900 font-semibold flex items-center gap-1 bg-white border border-slate-200 px-4 py-2 rounded-xl shadow-sm"
         >
-          ← Back to Queue
+          ← Back to Dashboard Queue
         </Link>
         <div className="flex items-center gap-2">
+          <span className="bg-amber-100 text-amber-900 text-xs font-bold px-3 py-1 rounded-full border border-amber-200 animate-pulse">
+            👀 Under Examination
+          </span>
           {is_voice_intake && (
             <span className="bg-purple-100 text-purple-800 text-xs font-bold px-3 py-1 rounded-full border border-purple-200">
               🎙️ Voice Note Intake
@@ -200,6 +224,39 @@ export default async function DoctorIntakeDetailPage({
               Audio recording available on WhatsApp or processing storage link.
             </p>
           )}
+        </div>
+      )}
+
+      {/* Patient Past Cured Medical History & Previous Treatments Card */}
+      {pastHistoryList.length > 0 && (
+        <div className="bg-indigo-50/60 border border-indigo-200 rounded-2xl p-6 shadow-sm space-y-4">
+          <h3 className="text-indigo-950 font-bold text-lg flex items-center gap-2">
+            📚 Patient Past Cured Medical History & Previous Clinic Visits ({pastHistoryList.length})
+          </h3>
+          <div className="space-y-3">
+            {pastHistoryList.map((prevIntake: any) => (
+              <div key={prevIntake.id} className="bg-white border border-indigo-100 rounded-xl p-4 space-y-2 text-sm shadow-sm">
+                <div className="flex items-center justify-between text-xs text-slate-500 font-semibold border-b border-slate-100 pb-2">
+                  <span>Visit Date: {new Date(prevIntake.created_at).toLocaleDateString()}</span>
+                  <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">
+                    ✓ {prevIntake.status === 'doctor_reviewed' ? 'Treated & Cured' : prevIntake.status}
+                  </span>
+                </div>
+                <p className="text-slate-800 font-medium italic">
+                  "{prevIntake.raw_text}"
+                </p>
+                {prevIntake.structured_data?.primary_symptoms && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {prevIntake.structured_data.primary_symptoms.map((s: string, idx: number) => (
+                      <span key={idx} className="bg-slate-100 text-slate-700 text-xs px-2 py-0.5 rounded border border-slate-200">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
