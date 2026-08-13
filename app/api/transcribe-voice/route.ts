@@ -39,7 +39,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // If media_url provided (WhatsApp), fetch audio buffer
     if (media_url && !audioBuffer) {
       console.log(`🎙️ Fetching WhatsApp audio note from URL: ${media_url}...`);
       const audioRes = await fetch(media_url);
@@ -55,29 +54,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No valid audio buffer received' }, { status: 400 });
     }
 
-    console.log(`🎙️ Transcribing ${audioBuffer.length} bytes of audio using Groq Whisper Large-v3 (${fileExtension})...`);
+    console.log(`🎙️ Transcribing ${audioBuffer.length} bytes using Groq Whisper Large-v3 (${fileExtension})...`);
 
-    // Create File object for Groq Whisper ASR API
     const audioFile = new File([new Uint8Array(audioBuffer)], `voice_recording.${fileExtension}`, { type: mimeType });
 
     let transcribedText = '';
     try {
       const transcription = await groq.audio.transcriptions.create({
         file: audioFile,
-        model: 'whisper-large-v3-turbo',
-        prompt: 'Patient describing medical symptoms in Hindi, Devanagari, Angika, Bhojpuri, Maithili, Magahi, Tamil, Kannada, Telugu, Marathi, Bengali, Punjabi, or English.',
+        model: 'whisper-large-v3',
+        prompt: 'Verbatim medical patient transcript in Hindi, Devanagari, Angika, Bhojpuri, Maithili, Magahi, Tamil, Kannada, Telugu, Marathi, Bengali, Punjabi, or Hinglish. Capture exact spoken words, medical symptoms, pain levels, and questions without skipping phrases.',
         response_format: 'json',
         temperature: 0.0,
       });
 
       transcribedText = transcription.text.trim();
-      console.log(`✅ Groq Whisper Transcription Success: "${transcribedText}"`);
+      console.log(`✅ Groq Whisper Verbatim Transcription: "${transcribedText}"`);
     } catch (whisperErr: any) {
       console.error('❌ Groq Whisper ASR API Error:', whisperErr);
       transcribedText = `[Voice recording captured in regional dialect - Audio file saved for doctor review]`;
     }
 
-    // If intake_id exists, update intake record in Supabase
     if (intake_id) {
       const storagePath = `voice-intakes/${intake_id}.${fileExtension}`;
       try {
@@ -97,7 +94,6 @@ export async function POST(request: Request) {
         })
         .eq('id', intake_id);
 
-      // Trigger background LLM translation & structuring
       const origin = new URL(request.url).origin;
       fetch(`${origin}/api/structure-intake`, {
         method: 'POST',

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import KillSwitchButton from './KillSwitchButton';
 import SignOutButton from '@/components/SignOutButton';
+import PriorityShiftButtons from './PriorityShiftButtons';
 
 export const revalidate = 0;
 
@@ -32,7 +33,6 @@ export default async function DoctorDashboardPage({
 
   const supabase = await createClient();
 
-  // Get currently logged-in authenticated user
   const { data: { user } } = await supabase.auth.getUser();
 
   let doctorProfile: any = null;
@@ -58,7 +58,6 @@ export default async function DoctorDashboardPage({
     }
   }
 
-  // Fetch intakes
   let query = supabase.from('intakes').select(`
     id,
     clinic_id,
@@ -104,7 +103,6 @@ export default async function DoctorDashboardPage({
     allIntakes = primaryData || [];
   }
 
-  // Filter based on active tab: 'pending' vs 'in_progress' vs 'history'
   const pendingIntakes = allIntakes.filter((i: any) => i.status !== 'doctor_reviewed' && i.status !== 'in_progress');
   const inProgressIntakes = allIntakes.filter((i: any) => i.status === 'in_progress');
   const reviewedIntakes = allIntakes.filter((i: any) => i.status === 'doctor_reviewed');
@@ -118,7 +116,6 @@ export default async function DoctorDashboardPage({
     displayedList = pendingIntakes;
   }
 
-  // Sort active queue: Urgency level (high first) then creation date
   const sortedIntakes = displayedList.sort((a: any, b: any) => {
     const rankA = getUrgencyRank(a.urgency_level);
     const rankB = getUrgencyRank(b.urgency_level);
@@ -211,7 +208,7 @@ export default async function DoctorDashboardPage({
         </Link>
       </div>
 
-      {/* Intake Cards List with Queue Position Numbering & Reordering */}
+      {/* Intake Cards List with Interactive Queue Position Reordering */}
       {sortedIntakes.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-500">
           {activeTab === 'history'
@@ -227,6 +224,7 @@ export default async function DoctorDashboardPage({
             const patient = intake.patients;
             const status = intake.status;
             const queuePosition = index + 1;
+            const synthesis = intake.structured_data?.clinical_synthesis;
 
             return (
               <div
@@ -241,7 +239,6 @@ export default async function DoctorDashboardPage({
               >
                 <div className="flex flex-wrap items-start justify-between gap-4 mb-3">
                   <div className="flex items-start gap-3">
-                    {/* Queue Position Numbering Badge */}
                     <div className="bg-slate-900 text-white font-extrabold text-sm px-3 py-1.5 rounded-xl flex items-center justify-center shadow-sm">
                       #{queuePosition}
                     </div>
@@ -259,7 +256,6 @@ export default async function DoctorDashboardPage({
                           Age: {patient?.age} yrs
                         </span>
 
-                        {/* Status Badges near Patient Name */}
                         {status === 'doctor_reviewed' && (
                           <span className="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-bold">
                             ✅ Treated & Cured
@@ -283,7 +279,6 @@ export default async function DoctorDashboardPage({
                     </div>
                   </div>
 
-                  {/* Urgency Badge & Reordering Controls */}
                   <div className="flex flex-wrap items-center gap-2">
                     {urgency === 'high' && (
                       <span className="inline-flex items-center gap-1.5 bg-red-600 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-full shadow-sm animate-pulse">
@@ -303,7 +298,6 @@ export default async function DoctorDashboardPage({
                   </div>
                 </div>
 
-                {/* Red Flags Tags */}
                 {intake.red_flags && intake.red_flags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {intake.red_flags.map((flag: string, idx: number) => (
@@ -317,34 +311,30 @@ export default async function DoctorDashboardPage({
                   </div>
                 )}
 
-                {/* Snippet preview */}
-                <p className="text-slate-600 text-sm line-clamp-2 italic mb-4">
-                  "{intake.raw_text}"
-                </p>
-
-                {/* Doctor Action Controls: Shift Order & View Details */}
-                <div className="flex flex-wrap items-center justify-between border-t border-slate-100 pt-3 gap-3">
-                  <div className="text-xs text-slate-500 font-medium flex items-center gap-2">
-                    <span>Shift Priority:</span>
-                    <form action={async () => {
-                      'use server';
-                      const s = await createClient();
-                      await s.from('intakes').update({ urgency_level: 'high' }).eq('id', intake.id);
-                    }}>
-                      <button type="submit" className="bg-red-50 hover:bg-red-100 text-red-700 font-bold px-2 py-1 rounded text-xs border border-red-200">
-                        ▲ Shift to #1 Emergency
-                      </button>
-                    </form>
-                    <form action={async () => {
-                      'use server';
-                      const s = await createClient();
-                      await s.from('intakes').update({ urgency_level: 'medium' }).eq('id', intake.id);
-                    }}>
-                      <button type="submit" className="bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold px-2 py-1 rounded text-xs border border-amber-200">
-                        🟡 Medium Priority
-                      </button>
-                    </form>
+                {/* AI Clinical Narrative Synthesis */}
+                {synthesis ? (
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 mb-4 text-xs text-slate-800 space-y-1">
+                    <span className="font-bold text-indigo-900 block text-[11px] uppercase tracking-wider">
+                      🤖 AI Clinical Narrative Synthesis:
+                    </span>
+                    <p className="leading-relaxed font-medium">
+                      {synthesis}
+                    </p>
                   </div>
+                ) : (
+                  <p className="text-slate-600 text-sm line-clamp-2 italic mb-4">
+                    "{intake.raw_text}"
+                  </p>
+                )}
+
+                {/* Doctor Action Controls: Interactive Priority Shift Buttons */}
+                <div className="flex flex-wrap items-center justify-between border-t border-slate-100 pt-3 gap-3">
+                  <PriorityShiftButtons
+                    intakeId={intake.id}
+                    currentUrgency={urgency}
+                    position={queuePosition}
+                    totalInQueue={sortedIntakes.length}
+                  />
 
                   <Link
                     href={`/doctor/intake/${intake.id}`}

@@ -12,27 +12,28 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-const SYSTEM_PROMPT = `You are a clinical data extraction tool designed for structured intake in a telemedicine platform. 
-Your ONLY task is to extract objective symptom information from the patient's free-text input and return a JSON object.
+const SYSTEM_PROMPT = `You are an expert clinical data extraction and intake synthesis assistant in a medical tele-triage system.
+Your task is to analyze the patient's transcript and produce a highly descriptive, professional clinical breakdown in English for doctor decision-support.
 
 CRITICAL MANDATES & COMPLIANCE GUARDRAILS:
-1. You are a DATA EXTRACTION tool, NOT a diagnostic tool.
-2. NEVER output a likely condition, diagnosis, disease name, or medical opinion.
-3. NEVER suggest or recommend any medication, home remedy, or treatment.
-4. Extract ONLY facts explicitly stated or directly implied by the patient's words.
-5. TRANSLATION MANDATE: Regardless of what regional language or dialect the patient spoke (e.g. Hindi, Angika, Bhojpuri, Maithili, Tamil, Kannada, Marathi, Hinglish), ALL fields in the extracted JSON output MUST be translated and written in clear, professional ENGLISH for doctor review.
+1. You are a DATA EXTRACTION & SYNTHESIS tool, NOT a diagnostic tool.
+2. NEVER output a definitive disease diagnosis or prescribe prescription drugs.
+3. TRANSLATION MANDATE: Translate all regional languages/dialects (Hindi, Angika, Bhojpuri, Tamil, Kannada, Hinglish) into clear, professional Medical English.
+4. Provide a rich, comprehensive "clinical_synthesis" field capturing:
+   - Patient's primary complaints and emotional state (e.g. severe anxiety, acute pain, distress)
+   - Detailed timeline and symptom progression
+   - Specific questions or guidance requested by the patient (e.g. home remedies vs clinic visit)
 
 Required Output Schema (JSON ONLY, no markdown, no explanatory text):
 {
-  "duration": "string describing symptom duration in English, e.g., '3 days', 'since this morning', 'unknown'",
-  "severity": "patient's description of severity translated to English, e.g., 'mild', 'unbearable', 'moderate', 'not specified'",
+  "clinical_synthesis": "Comprehensive narrative synthesis of the patient's condition, emotional state, symptom progression, and specific guidance requested by the patient.",
+  "duration": "Symptom duration in English, e.g. '3 days', 'since this morning', 'acute onset'",
+  "severity": "Patient-described severity, e.g. 'unbearable one-sided headache', 'severe cramps', 'moderate'",
   "primary_symptoms": ["list of main complaints translated to English"],
-  "associated_symptoms": ["list of secondary or accompanying symptoms translated to English"],
-  "relevant_history": "past medical background translated to English, or 'none stated'",
+  "associated_symptoms": ["list of accompanying symptoms"],
+  "relevant_history": "past medical background or 'none stated'",
   "extraction_confidence": "high" | "medium" | "low"
-}
-
-If the text is messy, unclear, or incomplete, set "extraction_confidence" to "low" or "medium" and capture whatever partial facts you can safely extract.`;
+}`;
 
 async function callGroqLLM(rawText: string) {
   const completion = await groq.chat.completions.create({
@@ -40,7 +41,7 @@ async function callGroqLLM(rawText: string) {
       { role: 'system', content: SYSTEM_PROMPT },
       {
         role: 'user',
-        content: `Extract structured intake data from the following patient transcript:\n\n"${rawText}"`,
+        content: `Extract and synthesize detailed clinical intake data from the following patient transcript:\n\n"${rawText}"`,
       },
     ],
     model: 'llama-3.3-70b-versatile',
@@ -53,11 +54,11 @@ async function callGroqLLM(rawText: string) {
 
 function parseJSONSafely(content: string) {
   try {
-    // Strip markdown code fences if present
     const cleaned = content.replace(/```json/g, '').replace(/```/g, '').trim();
     const parsed = JSON.parse(cleaned);
 
     return {
+      clinical_synthesis: String(parsed.clinical_synthesis || 'Patient presented with acute symptoms requiring doctor evaluation.'),
       duration: String(parsed.duration || 'Not specified'),
       severity: String(parsed.severity || 'Not specified'),
       primary_symptoms: Array.isArray(parsed.primary_symptoms) ? parsed.primary_symptoms.map(String) : [],
@@ -80,7 +81,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing intake_id' }, { status: 400 });
     }
 
-    // 1. Fetch raw_text and patient age from Supabase
     const { data: intake, error: fetchError } = await supabase
       .from('intakes')
       .select(`
@@ -103,16 +103,15 @@ export async function POST(request: Request) {
     let structuredData = null;
     let attempts = 0;
 
-    // 2. Call Groq with 1 retry attempt if JSON parsing fails
     while (attempts < 2 && !structuredData) {
       attempts++;
       const llmOutput = await callGroqLLM(intake.raw_text);
       structuredData = parseJSONSafely(llmOutput);
     }
 
-    // Fallback if parsing failed after retries
     if (!structuredData) {
       structuredData = {
+        clinical_synthesis: `Patient stated: "${intake.raw_text}"`,
         duration: 'Not specified',
         severity: 'Not specified',
         primary_symptoms: [intake.raw_text],
@@ -122,17 +121,14 @@ export async function POST(request: Request) {
       };
     }
 
-    // Enforced UI Safeguard: If transcript contains non-English / regional Indic scripts (Tamil, Kannada, Telugu, Bengali, Punjabi), set confidence to medium/low to force raw transcript review gate
     const containsRegionalScript = /[\u0B80-\u0BFF\u0C80-\u0CFF\u0C00-\u0C7F\u0980-\u09FF\u0A00-\u0A7F]/u.test(intake.raw_text);
     if (containsRegionalScript && structuredData.extraction_confidence === 'high') {
       structuredData.extraction_confidence = 'medium';
     }
 
-    // 3. Run Deterministic Red-Flag Rules Engine (TypeScript)
     const patientAge = (intake.patients as any)?.age ?? null;
     const triageResult = checkUrgency(structuredData, patientAge, intake.raw_text);
 
-    // 4. Update structured_data, urgency_level, and red_flags in Supabase
     const { error: updateError } = await supabase
       .from('intakes')
       .update({
@@ -144,12 +140,11 @@ export async function POST(request: Request) {
 
     if (updateError) {
       return NextResponse.json(
-        { error: `Failed to save structured data & triage result: ${updateError.message}` },
+        { error: `Failed to save structured data: ${updateError.message}` },
         { status: 500 }
       );
     }
 
-    // 5. ICMR 2023 Compliance: Write audit logs for LLM Extraction and Triage Evaluation
     await supabase.from('audit_logs').insert([
       {
         intake_id,
@@ -160,15 +155,6 @@ export async function POST(request: Request) {
           raw_text: intake.raw_text,
           structured_output: structuredData,
           confidence: structuredData.extraction_confidence,
-        },
-      },
-      {
-        intake_id,
-        event_type: 'TRIAGE_RULE_EVAL',
-        actor: 'RULES_ENGINE',
-        details: {
-          urgency_level: triageResult.urgency_level,
-          red_flags_triggered: triageResult.red_flags,
         },
       },
     ]);
