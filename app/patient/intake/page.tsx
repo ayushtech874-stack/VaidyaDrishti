@@ -102,8 +102,8 @@ export default function PatientIntakePage() {
       if (targetDoc) setSelectedDoctorName(targetDoc.name);
       if (targetClinic) setSelectedClinicName(targetClinic.name);
 
-      // 2. Insert new intake row with selected clinic_id
-      const { data: newIntake, error: intakeError } = await supabase
+      // 2. Insert new intake row with fallback for legacy schema without voice/clinic columns
+      let newIntakeRes = await supabase
         .from('intakes')
         .insert([
           {
@@ -118,7 +118,23 @@ export default function PatientIntakePage() {
         .select('id')
         .single();
 
-      if (intakeError) throw intakeError;
+      // Fallback for legacy intakes schema missing is_voice_intake or clinic_id
+      if (newIntakeRes.error) {
+        newIntakeRes = await supabase
+          .from('intakes')
+          .insert([
+            {
+              patient_id: patientId,
+              raw_text: rawText.trim(),
+              status: 'pending_review',
+            },
+          ])
+          .select('id')
+          .single();
+      }
+
+      if (newIntakeRes.error) throw newIntakeRes.error;
+      const newIntake = newIntakeRes.data;
 
       // 3. Upload recorded audio blob to Supabase Storage if present
       if (newIntake?.id && recordedAudioBlob) {
