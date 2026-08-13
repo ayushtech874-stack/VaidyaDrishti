@@ -38,5 +38,6 @@ yarn-error.log*
 
 # Documentation & Operational Handbooks
 Operating_VaidyaDrishti.html
+VaidyaDrishti-Management.html
 *.html
 
