@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import WebVoiceRecorder from './WebVoiceRecorder';
 
@@ -9,17 +9,43 @@ export default function PatientIntakePage() {
   const [age, setAge] = useState('');
   const [phone, setPhone] = useState('');
   const [rawText, setRawText] = useState('');
+  const [selectedClinicId, setSelectedClinicId] = useState('');
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
+  const [clinicsList, setClinicsList] = useState<any[]>([]);
+  const [doctorsList, setDoctorsList] = useState<any[]>([]);
   const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [selectedDoctorName, setSelectedDoctorName] = useState('');
+  const [selectedClinicName, setSelectedClinicName] = useState('');
 
   const supabase = createClient();
 
+  useEffect(() => {
+    async function loadClinicsAndDoctors() {
+      try {
+        const { data: clinics } = await supabase.from('clinics').select('id, name, code, address');
+        const { data: doctors } = await supabase.from('doctors').select('id, name, rmp_registration_number, clinic_id, department_id');
+
+        setClinicsList(clinics || []);
+        setDoctorsList(doctors || []);
+
+        if (clinics && clinics.length > 0) {
+          setSelectedClinicId(clinics[0].id);
+          setSelectedClinicName(clinics[0].name);
+        }
+      } catch (err) {
+        console.warn('Failed to load clinic options:', err);
+      }
+    }
+    loadClinicsAndDoctors();
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !age || !phone.trim() || !rawText.trim()) {
-      setErrorMsg('Please fill in all fields before submitting.');
+    if (!name.trim() || !age || !phone.trim() || !rawText.trim() || !selectedClinicId) {
+      setErrorMsg('Please select a consulting doctor/clinic and fill in all fields before submitting.');
       return;
     }
 
@@ -46,6 +72,7 @@ export default function PatientIntakePage() {
               name: name.trim(),
               age: parseInt(age, 10),
               phone: phone.trim(),
+              clinic_id: selectedClinicId,
             },
           ])
           .select('id')
@@ -55,11 +82,19 @@ export default function PatientIntakePage() {
         patientId = newPatient.id;
       }
 
-      // 2. Insert new intake row
+      // Find doctor name for confirmation message
+      const targetDoc = doctorsList.find((d) => d.clinic_id === selectedClinicId);
+      const targetClinic = clinicsList.find((c) => c.id === selectedClinicId);
+      if (targetDoc) setSelectedDoctorName(targetDoc.name);
+      if (targetClinic) setSelectedClinicName(targetClinic.name);
+
+      // 2. Insert new intake row with selected clinic_id
       const { data: newIntake, error: intakeError } = await supabase
         .from('intakes')
         .insert([
           {
+            clinic_id: selectedClinicId,
+            department_id: selectedDepartmentId || null,
             patient_id: patientId,
             raw_text: rawText.trim(),
             status: 'pending_review',
@@ -113,17 +148,27 @@ export default function PatientIntakePage() {
           ✓
         </div>
         <h2 className="text-2xl font-bold text-slate-800">
-          Information Received
+          Information Received & Sent to Doctor!
         </h2>
+
+        <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-4 text-emerald-900 text-sm leading-relaxed text-left">
+          <p className="font-bold text-emerald-950 text-base mb-1">
+            ✅ Delivered to {selectedDoctorName || 'Consulting Physician'}'s Dashboard
+          </p>
+          <p className="text-emerald-800">
+            Clinic Queue: <strong>{selectedClinicName || 'Selected Clinic'}</strong>
+          </p>
+        </div>
+
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-700 text-sm leading-relaxed text-left">
           <p className="font-semibold text-slate-900 mb-2">What happens next?</p>
           <p>
-            Your symptom summary has been securely recorded for your consulting physician to review during your teleconsultation.
+            Your symptom summary has been securely recorded and dispatched directly to your doctor's active triage portal for immediate review during your teleconsultation.
           </p>
         </div>
 
         <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 text-amber-900 text-sm leading-relaxed text-left">
-          <strong>Notice:</strong> Your information has been sent to the doctor. This is not a diagnosis. If you are experiencing a medical emergency, please go to the nearest hospital immediately or call emergency services.
+          <strong>Notice:</strong> This intake is for triage support and does not replace emergency medical care. If experiencing an emergency, visit the nearest hospital immediately.
         </div>
 
         <button
@@ -146,10 +191,10 @@ export default function PatientIntakePage() {
     <div className="space-y-6 my-4">
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
         <h2 className="text-xl font-bold text-slate-900 mb-1">
-          Patient Intake Form
+          Patient Tele-Triage Intake Form
         </h2>
         <p className="text-sm text-slate-500 mb-6">
-          Please provide details about how you are feeling to assist your doctor.
+          Please select your consulting doctor/clinic and describe how you are feeling.
         </p>
 
         {errorMsg && (
@@ -159,6 +204,41 @@ export default function PatientIntakePage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Clinic & Doctor Selector Dropdown */}
+          <div className="bg-emerald-50/70 border border-emerald-200 p-4 rounded-xl space-y-2">
+            <label className="block text-sm font-bold text-emerald-950">
+              🏥 Select Consulting Hospital / Clinic & Doctor *
+            </label>
+            <select
+              required
+              value={selectedClinicId}
+              onChange={(e) => {
+                const cId = e.target.value;
+                setSelectedClinicId(cId);
+                const c = clinicsList.find((item) => item.id === cId);
+                if (c) setSelectedClinicName(c.name);
+              }}
+              className="w-full px-4 py-3 rounded-xl border border-emerald-300 bg-white font-semibold text-slate-800 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              {clinicsList.length === 0 ? (
+                <option value="">Loading clinics...</option>
+              ) : (
+                clinicsList.map((clinic) => {
+                  const matchingDoc = doctorsList.find((d) => d.clinic_id === clinic.id);
+                  const docText = matchingDoc ? ` — ${matchingDoc.name}` : '';
+                  return (
+                    <option key={clinic.id} value={clinic.id}>
+                      {clinic.name}{docText} ({clinic.code})
+                    </option>
+                  );
+                })
+              )}
+            </select>
+            <p className="text-xs text-emerald-800 font-medium">
+              Your symptoms and voice recording will be sent directly to this doctor's dashboard.
+            </p>
+          </div>
+
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">
               Full Name *
@@ -234,7 +314,7 @@ export default function PatientIntakePage() {
             disabled={isSubmitting}
             className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-4 px-6 rounded-xl shadow-md transition text-lg active:scale-[0.99]"
           >
-            {isSubmitting ? 'Submitting...' : 'Send Intake to Doctor'}
+            {isSubmitting ? 'Submitting to Doctor Dashboard...' : 'Send Intake to Doctor Dashboard'}
           </button>
         </form>
       </div>
