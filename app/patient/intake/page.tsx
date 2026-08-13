@@ -64,8 +64,8 @@ export default function PatientIntakePage() {
       if (existingPatient) {
         patientId = existingPatient.id;
       } else {
-        // Create new patient
-        const { data: newPatient, error: createError } = await supabase
+        // Create new patient with fallback for legacy schema without clinic_id
+        let newPatientRes = await supabase
           .from('patients')
           .insert([
             {
@@ -78,8 +78,22 @@ export default function PatientIntakePage() {
           .select('id')
           .single();
 
-        if (createError) throw createError;
-        patientId = newPatient.id;
+        if (newPatientRes.error && newPatientRes.error.message?.includes('clinic_id')) {
+          newPatientRes = await supabase
+            .from('patients')
+            .insert([
+              {
+                name: name.trim(),
+                age: parseInt(age, 10),
+                phone: phone.trim(),
+              },
+            ])
+            .select('id')
+            .single();
+        }
+
+        if (newPatientRes.error) throw newPatientRes.error;
+        patientId = newPatientRes.data.id;
       }
 
       // Find doctor name for confirmation message
