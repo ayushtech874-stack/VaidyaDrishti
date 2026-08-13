@@ -2,10 +2,10 @@
 -- VaidyaDrishti — Production Master Database Initialization Schema
 -- ==============================================================================
 -- Run this single file in Supabase SQL Editor for fresh production deployment.
--- Builds all tables, multi-tenant clinic columns, ICMR audit logs, and RLS policies.
+-- Builds all tables, multi-tenant clinic columns, departments, ICMR audit logs, and RLS policies.
 -- ==============================================================================
 
--- 1. Create Clinics Table
+-- 1. Create Clinics Table (Hospitals & Private Clinics)
 CREATE TABLE IF NOT EXISTS clinics (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
@@ -25,7 +25,18 @@ VALUES (
 ) ON CONFLICT (code) DO NOTHING;
 
 
--- 2. Create Patients Table
+-- 2. Create Departments Table (Medical Departments under Hospitals)
+CREATE TABLE IF NOT EXISTS departments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id UUID REFERENCES clinics(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  code TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(hospital_id, code)
+);
+
+
+-- 3. Create Patients Table
 CREATE TABLE IF NOT EXISTS patients (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   clinic_id UUID REFERENCES clinics(id) DEFAULT '00000000-0000-0000-0000-000000000001',
@@ -37,10 +48,11 @@ CREATE TABLE IF NOT EXISTS patients (
 );
 
 
--- 3. Create Doctors Table (Linked to Supabase Auth user id)
+-- 4. Create Doctors Table (Linked to Supabase Auth user id)
 CREATE TABLE IF NOT EXISTS doctors (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   clinic_id UUID REFERENCES clinics(id) DEFAULT '00000000-0000-0000-0000-000000000001',
+  department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
   name TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL,
   rmp_registration_number TEXT,
@@ -49,10 +61,11 @@ CREATE TABLE IF NOT EXISTS doctors (
 );
 
 
--- 4. Create Intakes Table
+-- 5. Create Intakes Table
 CREATE TABLE IF NOT EXISTS intakes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   clinic_id UUID REFERENCES clinics(id) DEFAULT '00000000-0000-0000-0000-000000000001',
+  department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
   patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
   raw_text TEXT NOT NULL,
   is_voice_intake BOOLEAN DEFAULT FALSE,
@@ -67,7 +80,7 @@ CREATE TABLE IF NOT EXISTS intakes (
 );
 
 
--- 5. Create Audit Logs Table (Tamper-Evident ICMR 2023 Audit Trail)
+-- 6. Create Audit Logs Table (Tamper-Evident ICMR 2023 Audit Trail)
 CREATE TABLE IF NOT EXISTS audit_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   clinic_id UUID REFERENCES clinics(id) DEFAULT '00000000-0000-0000-0000-000000000001',
@@ -88,7 +101,7 @@ BEGIN
 END $$;
 
 
--- 6. Create Doctor Corrections Table
+-- 7. Create Doctor Corrections Table
 CREATE TABLE IF NOT EXISTS doctor_corrections (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   clinic_id UUID REFERENCES clinics(id) DEFAULT '00000000-0000-0000-0000-000000000001',
@@ -101,7 +114,7 @@ CREATE TABLE IF NOT EXISTS doctor_corrections (
 );
 
 
--- 7. Create Pilot Metrics Table
+-- 8. Create Pilot Metrics Table
 CREATE TABLE IF NOT EXISTS pilot_metrics (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   clinic_id UUID REFERENCES clinics(id) DEFAULT '00000000-0000-0000-0000-000000000001',
@@ -112,7 +125,7 @@ CREATE TABLE IF NOT EXISTS pilot_metrics (
 );
 
 
--- 8. Create WhatsApp Sessions Table (For State Machine Routing)
+-- 9. Create WhatsApp Sessions Table (For State Machine Routing)
 CREATE TABLE IF NOT EXISTS whatsapp_sessions (
   phone TEXT PRIMARY KEY,
   clinic_id UUID REFERENCES clinics(id) DEFAULT '00000000-0000-0000-0000-000000000001',
@@ -126,24 +139,27 @@ CREATE TABLE IF NOT EXISTS whatsapp_sessions (
 );
 
 
--- 9. Enable Row Level Security (RLS) across all tables
+-- 10. Enable Row Level Security (RLS) across all tables
 ALTER TABLE clinics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE departments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE doctors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE intakes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE doctor_corrections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pilot_metrics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE whatsapp_sessions ENABLE ROW LEVEL SECURITY;
 
 -- Permissive RLS Policies for Anon API & Authenticated Service Roles
-CREATE POLICY IF NOT EXISTS "Allow anon and authenticated full access on clinics" ON clinics FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS "Allow anon and authenticated full access on patients" ON patients FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS "Allow anon and authenticated full access on doctors" ON doctors FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS "Allow anon and authenticated full access on intakes" ON intakes FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS "Allow anon and authenticated full access on audit_logs" ON audit_logs FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS "Allow anon and authenticated full access on doctor_corrections" ON doctor_corrections FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS "Allow anon and authenticated full access on pilot_metrics" ON pilot_metrics FOR ALL USING (true);
-CREATE POLICY IF NOT EXISTS "Allow anon and authenticated full access on whatsapp_sessions" ON whatsapp_sessions FOR ALL USING (true);
+CREATE POLICY "Allow anon and authenticated full access on clinics" ON clinics FOR ALL USING (true);
+CREATE POLICY "Allow anon and authenticated full access on departments" ON departments FOR ALL USING (true);
+CREATE POLICY "Allow anon and authenticated full access on patients" ON patients FOR ALL USING (true);
+CREATE POLICY "Allow anon and authenticated full access on doctors" ON doctors FOR ALL USING (true);
+CREATE POLICY "Allow anon and authenticated full access on intakes" ON intakes FOR ALL USING (true);
+CREATE POLICY "Allow anon and authenticated full access on audit_logs" ON audit_logs FOR ALL USING (true);
+CREATE POLICY "Allow anon and authenticated full access on doctor_corrections" ON doctor_corrections FOR ALL USING (true);
+CREATE POLICY "Allow anon and authenticated full access on pilot_metrics" ON pilot_metrics FOR ALL USING (true);
+CREATE POLICY "Allow anon and authenticated full access on whatsapp_sessions" ON whatsapp_sessions FOR ALL USING (true);
 
 -- ==============================================================================
 -- Schema Initialization Complete!
