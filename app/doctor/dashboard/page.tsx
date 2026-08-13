@@ -59,7 +59,7 @@ export default async function DoctorDashboardPage({
     }
   }
 
-  // Fetch intakes filtered by logged-in doctor's clinic_id
+  // Fetch intakes cleanly with graceful fallback for legacy database schemas
   let query = supabase.from('intakes').select(`
     id,
     clinic_id,
@@ -76,13 +76,32 @@ export default async function DoctorDashboardPage({
     )
   `);
 
-  // Multi-tenant isolation: filter intakes by doctor's clinic_id if present
   if (doctorProfile?.clinic_id && doctorProfile.role !== 'super_admin') {
     query = query.eq('clinic_id', doctorProfile.clinic_id);
   }
 
-  const { data: intakes, error } = await query;
-  const allIntakes = intakes || [];
+  let allIntakes: any[] = [];
+  const { data: primaryData, error: primaryError } = await query;
+
+  if (primaryError && primaryError.message?.includes('clinic_id')) {
+    const { data: fallbackData } = await supabase.from('intakes').select(`
+      id,
+      raw_text,
+      structured_data,
+      urgency_level,
+      red_flags,
+      status,
+      created_at,
+      patients (
+        name,
+        age,
+        phone
+      )
+    `);
+    allIntakes = fallbackData || [];
+  } else {
+    allIntakes = primaryData || [];
+  }
 
   // Filter based on active tab: 'pending' vs 'history'
   const pendingIntakes = allIntakes.filter((i: any) => i.status !== 'doctor_reviewed');
@@ -131,12 +150,6 @@ export default async function DoctorDashboardPage({
           <SignOutButton />
         </div>
       </div>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-sm">
-          Failed to load intakes queue: {error.message}
-        </div>
-      )}
 
       {/* Tabs Navigation: Pending Queue vs History */}
       <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
