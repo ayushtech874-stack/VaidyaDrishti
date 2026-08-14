@@ -41,8 +41,13 @@ export default async function DoctorDashboardPage() {
     }
   }
 
-  // Fetch all intakes with graceful fallbacks
-  let { data: primaryData, error } = await supabaseAdmin
+  const doctorDisplayName = doctorProfile?.name || user?.email || 'On-Duty RMP Doctor';
+  const doctorRmpNo = doctorProfile?.rmp_registration_number || 'VERIFIED-RMP';
+  const clinicDisplayName = clinicProfile?.name || 'Assigned Clinic';
+  const clinicId = doctorProfile?.clinic_id;
+
+  // Build Query with Multi-Tenant Clinic Isolation
+  let query = supabaseAdmin
     .from('intakes')
     .select(`
       id,
@@ -63,13 +68,21 @@ export default async function DoctorDashboardPage() {
     `)
     .order('created_at', { ascending: false });
 
-  let allIntakes: any[] = [];
+  // Filter strictly by doctor's clinic unless super_admin
+  if (clinicId && doctorProfile?.role !== 'super_admin') {
+    query = query.eq('clinic_id', clinicId);
+  }
 
-  if (error || !primaryData) {
-    const { data: fallbackData } = await supabaseAdmin
+  let allIntakes: any[] = [];
+  const { data: primaryData, error } = await query;
+
+  if (error || !primaryData || primaryData.length === 0) {
+    // Fallback: If clinic_id column is missing or default, fetch intakes gracefully
+    let fallbackQuery = supabaseAdmin
       .from('intakes')
       .select(`
         id,
+        clinic_id,
         raw_text,
         structured_data,
         urgency_level,
@@ -84,14 +97,16 @@ export default async function DoctorDashboardPage() {
         )
       `)
       .order('created_at', { ascending: false });
+
+    if (clinicId && doctorProfile?.role !== 'super_admin') {
+      fallbackQuery = fallbackQuery.or(`clinic_id.eq.${clinicId},clinic_id.is.null`);
+    }
+
+    const { data: fallbackData } = await fallbackQuery;
     allIntakes = (fallbackData || []) as any[];
   } else {
     allIntakes = primaryData as any[];
   }
-
-  const doctorDisplayName = doctorProfile?.name || user?.email || 'On-Duty RMP Doctor';
-  const doctorRmpNo = doctorProfile?.rmp_registration_number || 'VERIFIED-RMP';
-  const clinicDisplayName = clinicProfile?.name || 'Assigned Clinic';
 
   return (
     <div className="space-y-6">
