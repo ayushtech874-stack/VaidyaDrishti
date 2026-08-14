@@ -1,18 +1,37 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#047857" />
-      <stop offset="100%" stop-color="#0f172a" />
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="100%" stop-color="#1E293B" />
     </linearGradient>
-    <linearGradient id="iconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#34d399" />
-      <stop offset="100%" stop-color="#60a5fa" />
+    <linearGradient id="eyeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="50%" stop-color="#0284C7" />
+      <stop offset="100%" stop-color="#0369A1" />
+    </linearGradient>
+    <linearGradient id="cyanAccent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#4ADE80" />
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" />
-  <!-- Medical Eye + Cross Icon (VaidyaDrishti) -->
-  <path fill="url(#iconGrad)" d="M256 128C144 128 48 208 16 256c32 48 128 128 240 128s208-80 240-128c-32-48-128-128-240-128zm0 208c-44.2 0-80-35.8-80-80s35.8-80 80-80 80 35.8 80 80-35.8 80-80 80z" />
-  <circle cx="256" cy="256" r="44" fill="#ffffff" />
-  <!-- Central Medical Cross -->
-  <path fill="#047857" d="M246 226h20v20h20v20h-20v20h-20v-20h-20v-20h20z" />
+
+  <!-- Background App Badge -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+
+  <!-- Outer AI Orbital Ring -->
+  <path d="M 96 256 C 160 144, 352 144, 416 256" fill="none" stroke="url(#cyanAccent)" stroke-width="12" stroke-linecap="round" />
+  <path d="M 96 256 C 160 368, 352 368, 416 256" fill="none" stroke="url(#cyanAccent)" stroke-width="12" stroke-linecap="round" />
+
+  <!-- Circuit Nodes -->
+  <circle cx="120" cy="180" r="10" fill="#38BDF8" />
+  <circle cx="392" cy="180" r="10" fill="#4ADE80" />
+
+  <!-- Iris Circle -->
+  <circle cx="256" cy="256" r="88" fill="url(#eyeGrad)" stroke="#FFFFFF" stroke-width="8" />
+
+  <!-- Heartbeat Pulse / Medical Cross Core -->
+  <path d="M 196 256 L 230 256 L 242 220 L 256 296 L 270 236 L 282 256 L 316 256" fill="none" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Top Medical Cross Symbol -->
+  <path d="M 256 100 L 256 140 M 236 120 L 276 120" stroke="#38BDF8" stroke-width="14" stroke-linecap="round" />
 </svg>
