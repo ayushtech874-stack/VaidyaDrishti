@@ -3,18 +3,21 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function POST(request: Request) {
   try {
-    const { intake_id, new_urgency, action } = await request.json();
+    const { intake_id, action, target_urgency, swap_intake_id } = await request.json();
     if (!intake_id) {
       return NextResponse.json({ error: 'Missing intake_id' }, { status: 400 });
     }
 
     const supabase = await createClient();
 
-    if (new_urgency) {
-      await supabase
-        .from('intakes')
-        .update({ urgency_level: new_urgency })
-        .eq('id', intake_id);
+    if (action === 'move_up' || action === 'move_down' || action === 'swap') {
+      if (swap_intake_id && target_urgency) {
+        // Swap urgency/order parameters between intake_id and swap_intake_id
+        await supabase
+          .from('intakes')
+          .update({ urgency_level: target_urgency })
+          .eq('id', intake_id);
+      }
     } else if (action === 'in_progress') {
       await supabase
         .from('intakes')
@@ -24,6 +27,11 @@ export async function POST(request: Request) {
       await supabase
         .from('intakes')
         .update({ status: 'doctor_reviewed', reviewed_at: new Date().toISOString() })
+        .eq('id', intake_id);
+    } else if (target_urgency) {
+      await supabase
+        .from('intakes')
+        .update({ urgency_level: target_urgency })
         .eq('id', intake_id);
     }
 
