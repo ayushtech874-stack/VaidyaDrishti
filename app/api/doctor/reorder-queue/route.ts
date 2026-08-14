@@ -22,10 +22,19 @@ export async function POST(request: Request) {
 
       if (error) throw error;
     } else if (action === 'treated') {
-      const { error } = await supabaseAdmin
+      // Robust update with fallback for legacy schema missing reviewed_at column
+      let { error } = await supabaseAdmin
         .from('intakes')
         .update({ status: 'doctor_reviewed', reviewed_at: new Date().toISOString() })
         .eq('id', intake_id);
+
+      if (error && error.message?.includes('reviewed_at')) {
+        const fallbackRes = await supabaseAdmin
+          .from('intakes')
+          .update({ status: 'doctor_reviewed' })
+          .eq('id', intake_id);
+        error = fallbackRes.error;
+      }
 
       if (error) throw error;
     } else if (action === 'pending') {
@@ -36,7 +45,6 @@ export async function POST(request: Request) {
 
       if (error) throw error;
     } else if (action === 'swap' && swap_intake_id) {
-      // Fetch timestamps for both intakes to swap created_at & queue_position in database
       const { data: itemA } = await supabaseAdmin
         .from('intakes')
         .select('created_at, queue_position')
@@ -50,7 +58,6 @@ export async function POST(request: Request) {
         .single();
 
       if (itemA && itemB) {
-        // Swap created_at timestamps so database order persists 100% on reload
         await supabaseAdmin
           .from('intakes')
           .update({ created_at: itemB.created_at, queue_position: target_pos ?? 2 })
