@@ -53,6 +53,14 @@ function removeStatusOverride(intakeId: string) {
   }
 }
 
+function applyOverrides(rawIntakes: any[]): any[] {
+  const overrides = getStoredStatusOverrides();
+  return rawIntakes.map((i) => ({
+    ...i,
+    status: overrides[i.id] || i.status,
+  }));
+}
+
 function DashboardContent({
   initialIntakes,
 }: DashboardClientViewProps) {
@@ -62,26 +70,14 @@ function DashboardContent({
   const initialTab =
     tabParam === 'in_progress' ? 'in_progress' : tabParam === 'history' ? 'history' : 'pending';
 
-  const [intakes, setIntakes] = useState<any[]>(() => {
-    const overrides = getStoredStatusOverrides();
-    return initialIntakes.map((i) => ({
-      ...i,
-      status: overrides[i.id] || i.status,
-    }));
-  });
+  const [intakes, setIntakes] = useState<any[]>(initialIntakes);
   const [activeTab, setActiveTab] = useState<'pending' | 'in_progress' | 'history'>(initialTab);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
-  // Sync initial intakes prop merged with local storage overrides
+  // Sync initial intakes prop
   useEffect(() => {
-    const overrides = getStoredStatusOverrides();
-    setIntakes(
-      initialIntakes.map((i) => ({
-        ...i,
-        status: overrides[i.id] || i.status,
-      }))
-    );
+    setIntakes(initialIntakes);
   }, [initialIntakes]);
 
   // Sync activeTab if URL searchParams change
@@ -96,10 +92,13 @@ function DashboardContent({
     window.history.replaceState(null, '', `/doctor/dashboard?tab=${tab}`);
   };
 
+  // Synchronously compute effective intakes with overrides (ZERO FLICKER)
+  const effectiveIntakes = applyOverrides(intakes);
+
   // Instant local filtering (<10ms)
-  const pendingIntakes = intakes.filter((i) => i.status !== 'doctor_reviewed' && i.status !== 'in_progress');
-  const inProgressIntakes = intakes.filter((i) => i.status === 'in_progress');
-  const reviewedIntakes = intakes.filter((i) => i.status === 'doctor_reviewed');
+  const pendingIntakes = effectiveIntakes.filter((i) => i.status !== 'doctor_reviewed' && i.status !== 'in_progress');
+  const inProgressIntakes = effectiveIntakes.filter((i) => i.status === 'in_progress');
+  const reviewedIntakes = effectiveIntakes.filter((i) => i.status === 'doctor_reviewed');
 
   let currentList: any[] = [];
   if (activeTab === 'history') {
@@ -146,10 +145,10 @@ function DashboardContent({
 
     const targetDbStatus = dbStatusMap[newStatus];
 
-    // Save override locally so reloads never wipe out status
+    // Save override locally synchronously
     saveStatusOverride(intakeId, targetDbStatus);
 
-    // Instant local state update (<10ms)
+    // Instant state update
     setIntakes((prev) =>
       prev.map((item) => (item.id === intakeId ? { ...item, status: targetDbStatus } : item))
     );
