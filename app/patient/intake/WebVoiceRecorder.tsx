@@ -3,10 +3,14 @@
 import { useState, useRef, useEffect } from 'react';
 
 interface WebVoiceRecorderProps {
-  onTranscriptionComplete: (text: string, audioBlob?: Blob) => void;
+  onTranscriptionComplete?: (text: string, audioBlob?: Blob) => void;
+  onAudioRecorded?: (audioBlob: Blob) => void;
 }
 
-export default function WebVoiceRecorder({ onTranscriptionComplete }: WebVoiceRecorderProps) {
+export default function WebVoiceRecorder({
+  onTranscriptionComplete,
+  onAudioRecorded,
+}: WebVoiceRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState('');
@@ -59,6 +63,10 @@ export default function WebVoiceRecorder({ onTranscriptionComplete }: WebVoiceRe
         const url = URL.createObjectURL(audioBlob);
         setAudioUrl(url);
 
+        if (onAudioRecorded) {
+          onAudioRecorded(audioBlob);
+        }
+
         // Send audio to Groq Whisper Large v3 ASR (same engine as WhatsApp)
         await transcribeWithGroqWhisper(audioBlob);
       };
@@ -108,11 +116,15 @@ export default function WebVoiceRecorder({ onTranscriptionComplete }: WebVoiceRe
 
       const data = await res.json();
       const whisperText = data.text || data.transcribed_text || liveTranscript.trim() || '[Voice recording attached - Sent to doctor for review]';
-      onTranscriptionComplete(whisperText, blob);
+      if (onTranscriptionComplete) {
+        onTranscriptionComplete(whisperText, blob);
+      }
     } catch (err) {
       console.warn('Groq Whisper fallback to local audio attachment:', err);
       const fallbackText = liveTranscript.trim() || '[Voice recording attached - Sent to doctor for review]';
-      onTranscriptionComplete(fallbackText, blob);
+      if (onTranscriptionComplete) {
+        onTranscriptionComplete(fallbackText, blob);
+      }
     } finally {
       setIsTranscribing(false);
     }
