@@ -41,7 +41,8 @@ export default async function DoctorDashboardPage() {
     }
   }
 
-  let query = supabaseAdmin
+  // Fetch all intakes with graceful fallbacks
+  let { data: primaryData, error } = await supabaseAdmin
     .from('intakes')
     .select(`
       id,
@@ -62,14 +63,9 @@ export default async function DoctorDashboardPage() {
     `)
     .order('created_at', { ascending: false });
 
-  if (doctorProfile?.clinic_id && doctorProfile.role !== 'super_admin') {
-    query = query.eq('clinic_id', doctorProfile.clinic_id);
-  }
-
   let allIntakes: any[] = [];
-  const { data: primaryData, error: primaryError } = await query;
 
-  if (primaryError) {
+  if (error || !primaryData) {
     const { data: fallbackData } = await supabaseAdmin
       .from('intakes')
       .select(`
@@ -88,9 +84,9 @@ export default async function DoctorDashboardPage() {
         )
       `)
       .order('created_at', { ascending: false });
-    allIntakes = fallbackData || [];
+    allIntakes = (fallbackData || []) as any[];
   } else {
-    allIntakes = primaryData || [];
+    allIntakes = primaryData as any[];
   }
 
   const doctorDisplayName = doctorProfile?.name || user?.email || 'On-Duty RMP Doctor';

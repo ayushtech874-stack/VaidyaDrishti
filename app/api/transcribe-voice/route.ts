@@ -60,16 +60,17 @@ export async function POST(request: Request) {
 
     let transcribedText = '';
     try {
+      // Primary Transcription Pass with Regional Indic Phonetic Guidance
       const transcription = await groq.audio.transcriptions.create({
         file: audioFile,
         model: 'whisper-large-v3',
-        prompt: 'Verbatim medical patient transcript in Hindi, Devanagari, Angika, Bhojpuri, Maithili, Magahi, Tamil, Kannada, Telugu, Marathi, Bengali, Punjabi, or Hinglish. Capture exact spoken words, medical symptoms, pain levels, and questions without skipping phrases.',
+        prompt: 'यह मरीज की आवाज की रिकॉर्डिंग है। मरीज हिंदी, भोजपुरी, अंगिका, मैथिली, मगही, तमिल, तेलुगु, मराठी, बणाली, पंजाबी या हिंग्लिश में बीमारी बता रहा है। सिर दर्द, पेट दर्द, बुखार, ऐंठन, उल्टी, घबराहट, चक्कर, सीने में दर्द।',
         response_format: 'json',
         temperature: 0.0,
       });
 
       transcribedText = transcription.text.trim();
-      console.log(`✅ Groq Whisper Verbatim Transcription: "${transcribedText}"`);
+      console.log(`✅ Groq Whisper Indic ASR Transcription: "${transcribedText}"`);
     } catch (whisperErr: any) {
       console.error('❌ Groq Whisper ASR API Error:', whisperErr);
       transcribedText = `[Voice recording captured in regional dialect - Audio file saved for doctor review]`;
