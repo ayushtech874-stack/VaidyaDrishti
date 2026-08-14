@@ -1,63 +1,10 @@
 import Link from 'next/link';
-import { notFound, redirect } from 'next/navigation';
-import { revalidatePath } from 'next/cache';
+import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import DoctorCorrectionForm from './CorrectionForm';
-import ReviewActionGate from './ReviewActionGate';
+import IntakeStageActions from './IntakeStageActions';
 
 export const revalidate = 0;
-
-async function markAsReviewed(formData: FormData) {
-  'use server';
-  const intakeId = formData.get('intake_id') as string;
-  if (!intakeId) return;
-
-  const supabase = await createClient();
-
-  const { error } = await supabase
-    .from('intakes')
-    .update({ status: 'doctor_reviewed', reviewed_at: new Date().toISOString() })
-    .eq('id', intakeId);
-
-  if (error) console.error('Error marking intake as reviewed:', error.message);
-
-  try {
-    await supabase.from('audit_logs').insert([
-      {
-        intake_id: intakeId,
-        event_type: 'DOCTOR_REVIEW',
-        actor: 'DOCTOR',
-        details: {
-          action: 'MARK_AS_REVIEWED',
-          reviewed_at: new Date().toISOString(),
-        },
-      },
-    ]);
-  } catch (e) {
-    console.warn('Audit log write skipped:', e);
-  }
-
-  revalidatePath('/doctor/dashboard');
-  redirect('/doctor/dashboard?tab=history');
-}
-
-async function markAsInConsultation(formData: FormData) {
-  'use server';
-  const intakeId = formData.get('intake_id') as string;
-  if (!intakeId) return;
-
-  const supabase = await createClient();
-
-  const { error } = await supabase
-    .from('intakes')
-    .update({ status: 'in_progress' })
-    .eq('id', intakeId);
-
-  if (error) console.error('Error marking intake as in_progress:', error.message);
-
-  revalidatePath('/doctor/dashboard');
-  redirect('/doctor/dashboard?tab=in_progress');
-}
 
 export default async function DoctorIntakeDetailPage({
   params,
@@ -429,7 +376,7 @@ export default async function DoctorIntakeDetailPage({
         </div>
       </details>
 
-      {/* Action Footer with Workflow Stage Gate Buttons */}
+      {/* Action Footer with IntakeStageActions Client Component & Confirmation Modals */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-wrap items-center justify-between gap-4">
         <div className="text-sm text-slate-600 space-y-1">
           <div>Current Workflow Stage: <strong className="text-slate-900 capitalize">{intake.status.replace('_', ' ')}</strong></div>
@@ -442,26 +389,10 @@ export default async function DoctorIntakeDetailPage({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {intake.status !== 'in_progress' && intake.status !== 'doctor_reviewed' && (
-            <form action={markAsInConsultation}>
-              <input type="hidden" name="intake_id" value={intake.id} />
-              <button
-                type="submit"
-                className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-5 py-3 rounded-xl shadow transition active:scale-[0.99]"
-              >
-                🩺 Move to Under Consultation Room
-              </button>
-            </form>
-          )}
-
-          <ReviewActionGate
-            intakeId={intake.id}
-            confidence={confidence}
-            status={intake.status}
-            markAsReviewedAction={markAsReviewed}
-          />
-        </div>
+        <IntakeStageActions
+          intakeId={intake.id}
+          currentStatus={intake.status}
+        />
       </div>
     </div>
   );
