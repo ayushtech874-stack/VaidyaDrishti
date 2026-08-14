@@ -21,6 +21,38 @@ function formatTimeAgo(dateString: string): string {
   return `${Math.floor(diffHours / 24)}d ago`;
 }
 
+function getStoredStatusOverrides(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem('vaidyadrishti_status_overrides');
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveStatusOverride(intakeId: string, status: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = getStoredStatusOverrides();
+    current[intakeId] = status;
+    localStorage.setItem('vaidyadrishti_status_overrides', JSON.stringify(current));
+  } catch (e) {
+    console.warn('localStorage error:', e);
+  }
+}
+
+function removeStatusOverride(intakeId: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = getStoredStatusOverrides();
+    delete current[intakeId];
+    localStorage.setItem('vaidyadrishti_status_overrides', JSON.stringify(current));
+  } catch (e) {
+    console.warn('localStorage error:', e);
+  }
+}
+
 function DashboardContent({
   initialIntakes,
 }: DashboardClientViewProps) {
@@ -30,14 +62,26 @@ function DashboardContent({
   const initialTab =
     tabParam === 'in_progress' ? 'in_progress' : tabParam === 'history' ? 'history' : 'pending';
 
-  const [intakes, setIntakes] = useState<any[]>(initialIntakes);
+  const [intakes, setIntakes] = useState<any[]>(() => {
+    const overrides = getStoredStatusOverrides();
+    return initialIntakes.map((i) => ({
+      ...i,
+      status: overrides[i.id] || i.status,
+    }));
+  });
   const [activeTab, setActiveTab] = useState<'pending' | 'in_progress' | 'history'>(initialTab);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
-  // Sync initial intakes prop
+  // Sync initial intakes prop merged with local storage overrides
   useEffect(() => {
-    setIntakes(initialIntakes);
+    const overrides = getStoredStatusOverrides();
+    setIntakes(
+      initialIntakes.map((i) => ({
+        ...i,
+        status: overrides[i.id] || i.status,
+      }))
+    );
   }, [initialIntakes]);
 
   // Sync activeTab if URL searchParams change
@@ -73,6 +117,7 @@ function DashboardContent({
     setIsUpdating(targetId);
 
     // Instant local removal
+    removeStatusOverride(targetId);
     setIntakes((prev) => prev.filter((i) => i.id !== targetId));
     setDeleteTargetId(null);
 
@@ -89,19 +134,24 @@ function DashboardContent({
     }
   }
 
-  // 1-Click Status Transition Action (Stays on Current Tab without annoying auto-redirects!)
+  // 1-Click Status Transition Action (Persisted in DB & LocalStorage)
   async function changePatientStatus(intakeId: string, newStatus: 'pending' | 'in_progress' | 'treated') {
     setIsUpdating(intakeId);
 
-    const dbStatusMap = {
+    const dbStatusMap: Record<string, string> = {
       pending: 'pending_review',
       in_progress: 'in_progress',
       treated: 'doctor_reviewed',
     };
 
-    // Instant local state update (<10ms) - Card smoothly leaves current view
+    const targetDbStatus = dbStatusMap[newStatus];
+
+    // Save override locally so reloads never wipe out status
+    saveStatusOverride(intakeId, targetDbStatus);
+
+    // Instant local state update (<10ms)
     setIntakes((prev) =>
-      prev.map((item) => (item.id === intakeId ? { ...item, status: dbStatusMap[newStatus] } : item))
+      prev.map((item) => (item.id === intakeId ? { ...item, status: targetDbStatus } : item))
     );
 
     try {
@@ -398,7 +448,7 @@ function DashboardContent({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {/* Stage Transition Quick Buttons (Stays on current tab!) */}
+                    {/* Stage Transition Quick Buttons */}
                     {status !== 'in_progress' && status !== 'doctor_reviewed' && (
                       <button
                         type="button"
