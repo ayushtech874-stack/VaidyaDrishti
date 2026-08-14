@@ -1,72 +1,103 @@
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/server';
+import { createClient as createServerClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 
 export const revalidate = 0;
+export const dynamic = 'force-dynamic';
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default async function DoctorAnalyticsPage() {
-  const supabase = await createClient();
+  const serverSupabase = await createServerClient();
+  const { data: { user } } = await serverSupabase.auth.getUser();
+
+  let doctorProfile: any = null;
+  let clinicProfile: any = null;
+
+  if (user) {
+    const { data: docData } = await supabaseAdmin
+      .from('doctors')
+      .select('id, name, email, rmp_registration_number, clinic_id, role')
+      .eq('id', user.id)
+      .single();
+
+    if (docData) {
+      doctorProfile = docData;
+      if (docData.clinic_id) {
+        const { data: clinicData } = await supabaseAdmin
+          .from('clinics')
+          .select('name, code')
+          .eq('id', docData.clinic_id)
+          .single();
+        clinicProfile = clinicData;
+      }
+    }
+  }
+
+  const doctorDisplayName = doctorProfile?.name || user?.email || 'On-Duty RMP Doctor';
+  const doctorRmpNo = doctorProfile?.rmp_registration_number || 'VERIFIED-RMP';
+  const clinicDisplayName = clinicProfile?.name || 'Assigned Clinic';
+  const clinicId = doctorProfile?.clinic_id;
 
   let summary: any = null;
   let summaryError: string | null = null;
 
-  // Try querying SQL VIEW first
-  const { data: viewData, error: viewErr } = await supabase
-    .from('clinic_performance_summary')
-    .select('*')
-    .maybeSingle();
-
-  if (viewData && !viewErr) {
-    summary = viewData;
-  } else {
-    // Graceful Fallback: Compute metrics directly from DB tables if view is not executed yet
-    try {
-      const { data: intakes } = await supabase.from('intakes').select('urgency_level, status');
-      const { data: corrections } = await supabase
-        .from('doctor_corrections')
-        .select('original_urgency, corrected_urgency');
-      const { data: metrics } = await supabase
-        .from('pilot_metrics')
-        .select('review_duration_seconds, was_urgency_overridden, is_blind_sample');
-
-      const allIntakes = intakes || [];
-      const allCorrections = corrections || [];
-      const allMetrics = metrics || [];
-
-      const totalIntakes = allIntakes.length;
-      const highUrgency = allIntakes.filter((i) => i.urgency_level === 'high').length;
-      const mediumUrgency = allIntakes.filter((i) => i.urgency_level === 'medium').length;
-      const lowUrgency = allIntakes.filter((i) => i.urgency_level === 'low').length;
-
-      const falseHighFlags = allCorrections.filter(
-        (c) => c.original_urgency === 'high' && c.corrected_urgency !== 'high'
-      ).length;
-
-      const missedHighFlags = allCorrections.filter(
-        (c) => c.original_urgency !== 'high' && c.corrected_urgency === 'high'
-      ).length;
-
-      const totalSeconds = allMetrics.reduce((sum, m) => sum + (m.review_duration_seconds || 0), 0);
-      const avgSeconds = allMetrics.length > 0 ? Math.round(totalSeconds / allMetrics.length) : 0;
-
-      const blindSamples = allMetrics.filter((m) => m.is_blind_sample);
-      const blindAgreed = blindSamples.filter((m) => !m.was_urgency_overridden).length;
-      const blindAgreementPct =
-        blindSamples.length > 0 ? Math.round((blindAgreed / blindSamples.length) * 100) : null;
-
-      summary = {
-        total_intakes: totalIntakes,
-        high_urgency_count: highUrgency,
-        medium_urgency_count: mediumUrgency,
-        low_urgency_count: lowUrgency,
-        false_high_flags: falseHighFlags,
-        missed_high_flags: missedHighFlags,
-        avg_active_review_seconds: avgSeconds,
-        blind_sample_agreement_pct: blindAgreementPct,
-        total_blind_samples: blindSamples.length,
-      };
-    } catch (fallbackErr: any) {
-      summaryError = fallbackErr?.message || 'Failed to compute analytics summary.';
+  // Filter analytics by clinic_id for private multi-tenant doctor isolation
+  try {
+    let intakesQuery = supabaseAdmin.from('intakes').select('id, urgency_level, status, clinic_id');
+    if (clinicId && doctorProfile?.role !== 'super_admin') {
+      intakesQuery = intakesQuery.eq('clinic_id', clinicId);
     }
+
+    const { data: intakes } = await intakesQuery;
+    const { data: corrections } = await supabaseAdmin
+      .from('doctor_corrections')
+      .select('original_urgency, corrected_urgency');
+    const { data: metrics } = await supabaseAdmin
+      .from('pilot_metrics')
+      .select('review_duration_seconds, was_urgency_overridden, is_blind_sample');
+
+    const allIntakes = intakes || [];
+    const allCorrections = corrections || [];
+    const allMetrics = metrics || [];
+
+    const totalIntakes = allIntakes.length;
+    const highUrgency = allIntakes.filter((i) => i.urgency_level === 'high').length;
+    const mediumUrgency = allIntakes.filter((i) => i.urgency_level === 'medium').length;
+    const lowUrgency = allIntakes.filter((i) => i.urgency_level === 'low').length;
+
+    const falseHighFlags = allCorrections.filter(
+      (c) => c.original_urgency === 'high' && c.corrected_urgency !== 'high'
+    ).length;
+
+    const missedHighFlags = allCorrections.filter(
+      (c) => c.original_urgency !== 'high' && c.corrected_urgency === 'high'
+    ).length;
+
+    const totalSeconds = allMetrics.reduce((sum, m) => sum + (m.review_duration_seconds || 0), 0);
+    const avgSeconds = allMetrics.length > 0 ? Math.round(totalSeconds / allMetrics.length) : 0;
+
+    const blindSamples = allMetrics.filter((m) => m.is_blind_sample);
+    const blindAgreed = blindSamples.filter((m) => !m.was_urgency_overridden).length;
+    const blindAgreementPct =
+      blindSamples.length > 0 ? Math.round((blindAgreed / blindSamples.length) * 100) : null;
+
+    summary = {
+      total_intakes: totalIntakes,
+      high_urgency_count: highUrgency,
+      medium_urgency_count: mediumUrgency,
+      low_urgency_count: lowUrgency,
+      false_high_flags: falseHighFlags,
+      missed_high_flags: missedHighFlags,
+      avg_active_review_seconds: avgSeconds,
+      blind_sample_agreement_pct: blindAgreementPct,
+      total_blind_samples: blindSamples.length,
+    };
+  } catch (fallbackErr: any) {
+    summaryError = fallbackErr?.message || 'Failed to compute analytics summary.';
   }
 
   const totalIntakes = summary?.total_intakes || 0;
@@ -93,10 +124,16 @@ export default async function DoctorAnalyticsPage() {
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">
-            Pilot Clinical Analytics & Safety Dashboard
+            Clinical Analytics & Safety Metrics
           </h2>
-          <p className="text-sm text-slate-500">
-            Real-world performance, recall %, false-flag rate, and review efficiency metrics
+          <p className="text-sm text-slate-600">
+            Assigned RMP Doctor: <strong className="text-emerald-700 font-semibold">{doctorDisplayName}</strong>{' '}
+            <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded ml-1">
+              {doctorRmpNo}
+            </span>
+          </p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Clinic Queue Analytics: <strong>{clinicDisplayName}</strong>
           </p>
         </div>
         <Link
@@ -120,7 +157,7 @@ export default async function DoctorAnalyticsPage() {
             Total Intakes
           </span>
           <div className="text-3xl font-extrabold text-slate-900">{totalIntakes}</div>
-          <span className="text-xs text-slate-500">Processed in Pilot</span>
+          <span className="text-xs text-slate-500">Processed for {clinicDisplayName}</span>
         </div>
 
         <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm">
@@ -157,7 +194,7 @@ export default async function DoctorAnalyticsPage() {
         {/* Urgency Distribution Card */}
         <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm space-y-4">
           <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            📊 Urgency Distribution
+            📊 Urgency Distribution for {doctorDisplayName}
           </h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 bg-red-50 rounded-xl border border-red-100">
