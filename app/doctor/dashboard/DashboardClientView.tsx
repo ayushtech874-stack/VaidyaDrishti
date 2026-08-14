@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 interface DashboardClientViewProps {
   initialIntakes: any[];
@@ -25,7 +25,6 @@ function DashboardContent({
   initialIntakes,
 }: DashboardClientViewProps) {
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   const tabParam = searchParams.get('tab');
   const initialTab =
@@ -90,7 +89,7 @@ function DashboardContent({
     }
   }
 
-  // 1-Click Status Transition Action (Persisted in DB)
+  // 1-Click Status Transition Action (Stays on Current Tab without annoying auto-redirects!)
   async function changePatientStatus(intakeId: string, newStatus: 'pending' | 'in_progress' | 'treated') {
     setIsUpdating(intakeId);
 
@@ -100,21 +99,10 @@ function DashboardContent({
       treated: 'doctor_reviewed',
     };
 
-    const targetTabMap = {
-      pending: 'pending',
-      in_progress: 'in_progress',
-      treated: 'history',
-    };
-
-    const targetTab = targetTabMap[newStatus] as 'pending' | 'in_progress' | 'history';
-
-    // Instant local state update (<10ms)
+    // Instant local state update (<10ms) - Card smoothly leaves current view
     setIntakes((prev) =>
       prev.map((item) => (item.id === intakeId ? { ...item, status: dbStatusMap[newStatus] } : item))
     );
-
-    // Automatically switch active tab to destination tab
-    handleTabChange(targetTab);
 
     try {
       await fetch('/api/doctor/reorder-queue', {
@@ -172,7 +160,7 @@ function DashboardContent({
 
   return (
     <div className="space-y-6">
-      {/* Instant 0ms Tab Navigation Bar with URL SearchParam Sync */}
+      {/* Instant 0ms Tab Navigation Bar */}
       <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-3">
         <button
           type="button"
@@ -410,7 +398,7 @@ function DashboardContent({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {/* Stage Transition Quick Buttons */}
+                    {/* Stage Transition Quick Buttons (Stays on current tab!) */}
                     {status !== 'in_progress' && status !== 'doctor_reviewed' && (
                       <button
                         type="button"
