@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 interface IntakeStageActionsProps {
   intakeId: string;
@@ -9,12 +8,12 @@ interface IntakeStageActionsProps {
 }
 
 export default function IntakeStageActions({ intakeId, currentStatus }: IntakeStageActionsProps) {
-  const router = useRouter();
   const [showConsultModal, setShowConsultModal] = useState(false);
   const [showTreatedModal, setShowTreatedModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleStatusChange(targetAction: 'in_progress' | 'treated', targetTab: string) {
+  async function handleStatusChange(targetAction: 'in_progress' | 'treated' | 'delete', targetTab?: string) {
     setIsSubmitting(true);
     try {
       const res = await fetch('/api/doctor/reorder-queue', {
@@ -27,8 +26,11 @@ export default function IntakeStageActions({ intakeId, currentStatus }: IntakeSt
       });
 
       if (res.ok) {
-        // Redirect directly to the correct tab on dashboard
-        window.location.href = `/doctor/dashboard?tab=${targetTab}`;
+        if (targetAction === 'delete') {
+          window.location.href = '/doctor/dashboard';
+        } else {
+          window.location.href = `/doctor/dashboard?tab=${targetTab}`;
+        }
       } else {
         alert('Failed to update stage status. Please try again.');
       }
@@ -39,6 +41,7 @@ export default function IntakeStageActions({ intakeId, currentStatus }: IntakeSt
       setIsSubmitting(false);
       setShowConsultModal(false);
       setShowTreatedModal(false);
+      setShowDeleteModal(false);
     }
   }
 
@@ -50,7 +53,7 @@ export default function IntakeStageActions({ intakeId, currentStatus }: IntakeSt
           <button
             type="button"
             onClick={() => setShowConsultModal(true)}
-            className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-6 py-3.5 rounded-xl shadow-md transition active:scale-95 text-sm flex items-center gap-2"
+            className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-5 py-3 rounded-xl shadow-md transition active:scale-95 text-sm flex items-center gap-2"
           >
             <span>🩺</span> Move to Under Consultation Room
           </button>
@@ -60,11 +63,19 @@ export default function IntakeStageActions({ intakeId, currentStatus }: IntakeSt
           <button
             type="button"
             onClick={() => setShowTreatedModal(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3.5 rounded-xl shadow-md transition active:scale-95 text-sm flex items-center gap-2"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-3 rounded-xl shadow-md transition active:scale-95 text-sm flex items-center gap-2"
           >
             <span>✅</span> Mark as Treated & Cured
           </button>
         )}
+
+        <button
+          type="button"
+          onClick={() => setShowDeleteModal(true)}
+          className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold px-4 py-3 rounded-xl shadow-sm transition active:scale-95 text-sm flex items-center gap-1.5"
+        >
+          <span>🗑️</span> Delete Patient Intake
+        </button>
       </div>
 
       {/* Confirmation Modal 1: Move to Under Consultation Room */}
@@ -139,6 +150,45 @@ export default function IntakeStageActions({ intakeId, currentStatus }: IntakeSt
                 className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow transition disabled:opacity-50"
               >
                 {isSubmitting ? 'Finalizing...' : 'Yes, Finalize & Archive →'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal 3: Delete Intake Record */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-red-200 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 text-red-900">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-xl font-bold">
+                🗑️
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">
+                Delete Patient Intake Record?
+              </h3>
+            </div>
+
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Are you sure you want to permanently delete this intake record? This will remove the intake from your clinic queue and dashboard.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => handleStatusChange('delete')}
+                className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow transition disabled:opacity-50"
+              >
+                {isSubmitting ? 'Deleting...' : 'Yes, Delete Permanently →'}
               </button>
             </div>
           </div>

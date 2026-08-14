@@ -14,7 +14,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing intake_id' }, { status: 400 });
     }
 
-    if (action === 'in_progress') {
+    if (action === 'delete') {
+      // Delete audit logs and intake row from Supabase
+      try {
+        await supabaseAdmin.from('audit_logs').delete().eq('intake_id', intake_id);
+      } catch (e) {
+        console.warn('Audit logs delete optional:', e);
+      }
+
+      const { error } = await supabaseAdmin
+        .from('intakes')
+        .delete()
+        .eq('id', intake_id);
+
+      if (error) throw error;
+    } else if (action === 'in_progress') {
       const { error } = await supabaseAdmin
         .from('intakes')
         .update({ status: 'in_progress' })
@@ -22,7 +36,6 @@ export async function POST(request: Request) {
 
       if (error) throw error;
     } else if (action === 'treated') {
-      // Robust update with fallback for legacy schema missing reviewed_at column
       let { error } = await supabaseAdmin
         .from('intakes')
         .update({ status: 'doctor_reviewed', reviewed_at: new Date().toISOString() })

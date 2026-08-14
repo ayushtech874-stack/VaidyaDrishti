@@ -1,21 +1,28 @@
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/server';
+import { createClient as createServerClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 import KillSwitchButton from './KillSwitchButton';
 import SignOutButton from '@/components/SignOutButton';
 import DashboardClientView from './DashboardClientView';
 
 export const revalidate = 0;
+export const dynamic = 'force-dynamic';
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default async function DoctorDashboardPage() {
-  const supabase = await createClient();
+  const serverSupabase = await createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await serverSupabase.auth.getUser();
 
   let doctorProfile: any = null;
   let clinicProfile: any = null;
 
   if (user) {
-    const { data: docData } = await supabase
+    const { data: docData } = await supabaseAdmin
       .from('doctors')
       .select('id, name, email, rmp_registration_number, clinic_id, role')
       .eq('id', user.id)
@@ -24,7 +31,7 @@ export default async function DoctorDashboardPage() {
     if (docData) {
       doctorProfile = docData;
       if (docData.clinic_id) {
-        const { data: clinicData } = await supabase
+        const { data: clinicData } = await supabaseAdmin
           .from('clinics')
           .select('name, code')
           .eq('id', docData.clinic_id)
@@ -34,7 +41,7 @@ export default async function DoctorDashboardPage() {
     }
   }
 
-  let query = supabase
+  let query = supabaseAdmin
     .from('intakes')
     .select(`
       id,
@@ -63,7 +70,7 @@ export default async function DoctorDashboardPage() {
   const { data: primaryData, error: primaryError } = await query;
 
   if (primaryError) {
-    const { data: fallbackData } = await supabase
+    const { data: fallbackData } = await supabaseAdmin
       .from('intakes')
       .select(`
         id,

@@ -29,6 +29,7 @@ export default function DashboardClientView({
   const [intakes, setIntakes] = useState<any[]>(initialIntakes);
   const [activeTab, setActiveTab] = useState<'pending' | 'in_progress' | 'history'>('pending');
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   // Sync initial intakes prop
   useEffect(() => {
@@ -47,6 +48,29 @@ export default function DashboardClientView({
     currentList = inProgressIntakes;
   } else {
     currentList = pendingIntakes;
+  }
+
+  // Delete Patient Intake Record
+  async function confirmDeleteIntake() {
+    if (!deleteTargetId) return;
+    const targetId = deleteTargetId;
+    setIsUpdating(targetId);
+
+    // Instant local removal
+    setIntakes((prev) => prev.filter((i) => i.id !== targetId));
+    setDeleteTargetId(null);
+
+    try {
+      await fetch('/api/doctor/reorder-queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ intake_id: targetId, action: 'delete' }),
+      });
+    } catch (err) {
+      console.error('Delete error:', err);
+    } finally {
+      setIsUpdating(null);
+    }
   }
 
   // 1-Click Status Transition Action (Persisted in DB)
@@ -179,6 +203,43 @@ export default function DashboardClientView({
           </span>
         </button>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteTargetId && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-red-200 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 text-red-900">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-xl font-bold">
+                🗑️
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">
+                Delete Patient Intake Record?
+              </h3>
+            </div>
+
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Are you sure you want to permanently delete this intake record from your clinic dashboard?
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTargetId(null)}
+                className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteIntake}
+                className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow transition"
+              >
+                Yes, Delete Record →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Clean Queue List */}
       {currentList.length === 0 ? (
@@ -354,6 +415,16 @@ export default function DashboardClientView({
                         📋 Move Back to Waiting Queue
                       </button>
                     )}
+
+                    <button
+                      type="button"
+                      disabled={isUpdating === intake.id}
+                      onClick={() => setDeleteTargetId(intake.id)}
+                      className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold px-2.5 py-2 rounded-xl transition active:scale-95"
+                      title="Delete Record"
+                    >
+                      🗑️
+                    </button>
 
                     <Link
                       href={`/doctor/intake/${intake.id}`}
