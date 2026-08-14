@@ -13,13 +13,11 @@ async function markAsReviewed(formData: FormData) {
 
   const supabase = await createClient();
 
-  // 1. Update intake status to doctor_reviewed
   await supabase
     .from('intakes')
     .update({ status: 'doctor_reviewed', reviewed_at: new Date().toISOString() })
     .eq('id', intakeId);
 
-  // 2. ICMR Compliance: Write audit log for Doctor Review
   try {
     await supabase.from('audit_logs').insert([
       {
@@ -36,7 +34,22 @@ async function markAsReviewed(formData: FormData) {
     console.warn('Audit log write skipped:', e);
   }
 
-  redirect('/doctor/dashboard');
+  redirect('/doctor/dashboard?tab=history');
+}
+
+async function markAsInConsultation(formData: FormData) {
+  'use server';
+  const intakeId = formData.get('intake_id') as string;
+  if (!intakeId) return;
+
+  const supabase = await createClient();
+
+  await supabase
+    .from('intakes')
+    .update({ status: 'in_progress' })
+    .eq('id', intakeId);
+
+  redirect('/doctor/dashboard?tab=in_progress');
 }
 
 export default async function DoctorIntakeDetailPage({
@@ -49,7 +62,6 @@ export default async function DoctorIntakeDetailPage({
 
   const supabase = await createClient();
 
-  // Primary query for essential intake data
   const { data: intake, error } = await supabase
     .from('intakes')
     .select(`
@@ -73,14 +85,6 @@ export default async function DoctorIntakeDetailPage({
   if (error || !intake) {
     console.error(`Intake detail not found or query error for id [${id}]:`, error?.message);
     notFound();
-  }
-
-  // Mark as in_progress (Under Examination) if previously pending
-  if (intake.status !== 'doctor_reviewed' && intake.status !== 'in_progress') {
-    await supabase
-      .from('intakes')
-      .update({ status: 'in_progress' })
-      .eq('id', id);
   }
 
   // Optional voice columns fetch
@@ -150,9 +154,16 @@ export default async function DoctorIntakeDetailPage({
           ← Back to Dashboard Queue
         </Link>
         <div className="flex items-center gap-2">
-          <span className="bg-amber-100 text-amber-900 text-xs font-bold px-3 py-1 rounded-full border border-amber-200 animate-pulse">
-            👀 Under Examination
-          </span>
+          {intake.status === 'in_progress' && (
+            <span className="bg-amber-100 text-amber-900 text-xs font-bold px-3 py-1 rounded-full border border-amber-200 animate-pulse">
+              🩺 Under Consultation / Grievance Heard
+            </span>
+          )}
+          {intake.status === 'doctor_reviewed' && (
+            <span className="bg-emerald-100 text-emerald-900 text-xs font-bold px-3 py-1 rounded-full border border-emerald-200">
+              ✅ Treated & Cured Record
+            </span>
+          )}
           {is_voice_intake && (
             <span className="bg-purple-100 text-purple-800 text-xs font-bold px-3 py-1 rounded-full border border-purple-200">
               🎙️ Voice Note Intake
@@ -310,6 +321,18 @@ export default async function DoctorIntakeDetailPage({
           />
         </div>
 
+        {/* AI Narrative Synthesis */}
+        {structured?.clinical_synthesis && (
+          <div className="bg-indigo-50/70 border border-indigo-200 rounded-xl p-4 text-sm text-indigo-950 space-y-1">
+            <span className="font-bold text-indigo-900 block text-xs uppercase tracking-wider">
+              🤖 AI Clinical Narrative Synthesis:
+            </span>
+            <p className="leading-relaxed font-medium">
+              {structured.clinical_synthesis}
+            </p>
+          </div>
+        )}
+
         {structured ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
             <div>
@@ -384,7 +407,7 @@ export default async function DoctorIntakeDetailPage({
         )}
       </div>
 
-      {/* Collapsible Original Raw Transcript (Enforced Gate ID) */}
+      {/* Collapsible Original Raw Transcript */}
       <details id="raw-transcript-details" className="bg-white border border-slate-200 rounded-2xl shadow-sm group">
         <summary className="p-5 font-bold text-slate-800 cursor-pointer flex items-center justify-between select-none">
           <span>📄 Original Patient Raw Transcript / ASR Text (Click to Expand & Verify)</span>
@@ -399,18 +422,39 @@ export default async function DoctorIntakeDetailPage({
         </div>
       </details>
 
-      {/* Action Footer with Review Gate */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
-        <div className="text-sm text-slate-600">
-          Status: <strong className="text-slate-900 capitalize">{intake.status.replace('_', ' ')}</strong>
+      {/* Action Footer with Workflow Stage Gate Buttons */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div className="text-sm text-slate-600 space-y-1">
+          <div>Current Workflow Stage: <strong className="text-slate-900 capitalize">{intake.status.replace('_', ' ')}</strong></div>
+          <p className="text-xs text-slate-400">
+            {intake.status === 'in_progress'
+              ? 'Patient is currently in consultation room. Click below when checkup is finished.'
+              : intake.status === 'doctor_reviewed'
+              ? 'Record finalized and archived in Treated & Cured History.'
+              : 'Click below to move patient to consultation room or mark as treated.'}
+          </p>
         </div>
 
-        <ReviewActionGate
-          intakeId={intake.id}
-          confidence={confidence}
-          status={intake.status}
-          markAsReviewedAction={markAsReviewed}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          {intake.status !== 'in_progress' && intake.status !== 'doctor_reviewed' && (
+            <form action={markAsInConsultation}>
+              <input type="hidden" name="intake_id" value={intake.id} />
+              <button
+                type="submit"
+                className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-5 py-3 rounded-xl shadow transition active:scale-[0.99]"
+              >
+                🩺 Move to Under Consultation Room
+              </button>
+            </form>
+          )}
+
+          <ReviewActionGate
+            intakeId={intake.id}
+            confidence={confidence}
+            status={intake.status}
+            markAsReviewedAction={markAsReviewed}
+          />
+        </div>
       </div>
     </div>
   );
