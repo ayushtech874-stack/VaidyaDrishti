@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import DoctorCorrectionForm from './CorrectionForm';
 import ReviewActionGate from './ReviewActionGate';
@@ -13,10 +14,12 @@ async function markAsReviewed(formData: FormData) {
 
   const supabase = await createClient();
 
-  await supabase
+  const { error } = await supabase
     .from('intakes')
     .update({ status: 'doctor_reviewed', reviewed_at: new Date().toISOString() })
     .eq('id', intakeId);
+
+  if (error) console.error('Error marking intake as reviewed:', error.message);
 
   try {
     await supabase.from('audit_logs').insert([
@@ -34,6 +37,7 @@ async function markAsReviewed(formData: FormData) {
     console.warn('Audit log write skipped:', e);
   }
 
+  revalidatePath('/doctor/dashboard');
   redirect('/doctor/dashboard?tab=history');
 }
 
@@ -44,11 +48,14 @@ async function markAsInConsultation(formData: FormData) {
 
   const supabase = await createClient();
 
-  await supabase
+  const { error } = await supabase
     .from('intakes')
     .update({ status: 'in_progress' })
     .eq('id', intakeId);
 
+  if (error) console.error('Error marking intake as in_progress:', error.message);
+
+  revalidatePath('/doctor/dashboard');
   redirect('/doctor/dashboard?tab=in_progress');
 }
 

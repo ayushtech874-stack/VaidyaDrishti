@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { revalidatePath } from 'next/cache';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,7 +9,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: Request) {
   try {
-    const { intake_id, action, target_urgency, swap_intake_id } = await request.json();
+    const { intake_id, action, target_urgency, swap_intake_id, current_pos, target_pos } = await request.json();
     if (!intake_id) {
       return NextResponse.json({ error: 'Missing intake_id' }, { status: 400 });
     }
@@ -34,13 +35,20 @@ export async function POST(request: Request) {
         .eq('id', intake_id);
 
       if (error) throw error;
-    } else if (action === 'swap' && swap_intake_id && target_urgency) {
-      const { error } = await supabaseAdmin
+    } else if (action === 'swap' && swap_intake_id) {
+      // Swap queue_position values in database
+      const posA = current_pos ?? 1;
+      const posB = target_pos ?? 2;
+
+      await supabaseAdmin
         .from('intakes')
-        .update({ urgency_level: target_urgency })
+        .update({ queue_position: posB })
         .eq('id', intake_id);
 
-      if (error) throw error;
+      await supabaseAdmin
+        .from('intakes')
+        .update({ queue_position: posA })
+        .eq('id', swap_intake_id);
     } else if (target_urgency) {
       const { error } = await supabaseAdmin
         .from('intakes')
@@ -48,6 +56,12 @@ export async function POST(request: Request) {
         .eq('id', intake_id);
 
       if (error) throw error;
+    }
+
+    try {
+      revalidatePath('/doctor/dashboard');
+    } catch {
+      // revalidate optional
     }
 
     return NextResponse.json({ success: true });

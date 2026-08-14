@@ -42,6 +42,7 @@ export default async function DoctorDashboardPage() {
     urgency_level,
     red_flags,
     status,
+    queue_position,
     created_at,
     patients (
       id,
@@ -58,7 +59,7 @@ export default async function DoctorDashboardPage() {
   let allIntakes: any[] = [];
   const { data: primaryData, error: primaryError } = await query;
 
-  if (primaryError && primaryError.message?.includes('clinic_id')) {
+  if (primaryError) {
     const { data: fallbackData } = await supabase.from('intakes').select(`
       id,
       raw_text,
@@ -113,7 +114,7 @@ export default async function DoctorDashboardPage() {
         </div>
       </div>
 
-      {/* Interactive Dashboard Client View (Instant Tab Switching & Ladder Controls) */}
+      {/* Interactive Dashboard Client View */}
       <DashboardClientView
         initialIntakes={allIntakes}
         doctorDisplayName={doctorDisplayName}
