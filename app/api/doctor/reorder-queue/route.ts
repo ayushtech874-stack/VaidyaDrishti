@@ -36,19 +36,22 @@ export async function POST(request: Request) {
 
       if (error) throw error;
     } else if (action === 'swap' && swap_intake_id) {
-      // Swap queue_position values in database
       const posA = current_pos ?? 1;
       const posB = target_pos ?? 2;
 
-      await supabaseAdmin
-        .from('intakes')
-        .update({ queue_position: posB })
-        .eq('id', intake_id);
+      try {
+        await supabaseAdmin
+          .from('intakes')
+          .update({ queue_position: posB })
+          .eq('id', intake_id);
 
-      await supabaseAdmin
-        .from('intakes')
-        .update({ queue_position: posA })
-        .eq('id', swap_intake_id);
+        await supabaseAdmin
+          .from('intakes')
+          .update({ queue_position: posA })
+          .eq('id', swap_intake_id);
+      } catch (e) {
+        console.warn('queue_position column optional in database schema:', e);
+      }
     } else if (target_urgency) {
       const { error } = await supabaseAdmin
         .from('intakes')
@@ -60,6 +63,7 @@ export async function POST(request: Request) {
 
     try {
       revalidatePath('/doctor/dashboard');
+      revalidatePath(`/doctor/intake/${intake_id}`);
     } catch {
       // revalidate optional
     }

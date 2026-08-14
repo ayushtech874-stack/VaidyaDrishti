@@ -49,6 +49,34 @@ export default function DashboardClientView({
     currentList = pendingIntakes;
   }
 
+  // 1-Click Status Transition Action (Persisted in DB)
+  async function changePatientStatus(intakeId: string, newStatus: 'pending' | 'in_progress' | 'treated') {
+    setIsUpdating(intakeId);
+
+    const dbStatusMap = {
+      pending: 'pending_review',
+      in_progress: 'in_progress',
+      treated: 'doctor_reviewed',
+    };
+
+    // Instant local state update (<10ms)
+    setIntakes((prev) =>
+      prev.map((item) => (item.id === intakeId ? { ...item, status: dbStatusMap[newStatus] } : item))
+    );
+
+    try {
+      await fetch('/api/doctor/reorder-queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ intake_id: intakeId, action: newStatus }),
+      });
+    } catch (err) {
+      console.error('Status transition error:', err);
+    } finally {
+      setIsUpdating(null);
+    }
+  }
+
   // Instant Ladder Position Swap Action (Move Up / Move Down)
   async function swapLadderPosition(currentIndex: number, direction: 'up' | 'down') {
     const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
@@ -79,7 +107,8 @@ export default function DashboardClientView({
           intake_id: currentItem.id,
           action: 'swap',
           swap_intake_id: targetItem.id,
-          target_urgency: targetItem.urgency_level || 'medium',
+          current_pos: currentIndex + 1,
+          target_pos: targetIndex + 1,
         }),
       });
     } catch (err) {
@@ -259,7 +288,7 @@ export default function DashboardClientView({
                   </div>
                 )}
 
-                {/* Short AI Clinical Description Snippet (Clear Overview for Doctor) */}
+                {/* Short AI Clinical Description Snippet */}
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 mb-4 text-xs text-slate-800 space-y-1">
                   <span className="font-bold text-indigo-900 block text-[11px] uppercase tracking-wider">
                     📋 Clinical Symptom Overview:
@@ -269,17 +298,17 @@ export default function DashboardClientView({
                   </p>
                 </div>
 
-                {/* Sleek Action Footer: Ladder Controls + Primary Review Action */}
+                {/* Sleek Action Footer: Ladder Controls + Direct Status Shift Buttons */}
                 <div className="flex flex-wrap items-center justify-between border-t border-slate-100 pt-3 gap-3">
                   <div className="flex items-center gap-2 text-xs font-semibold">
-                    <span className="text-slate-500 font-medium">Shift Order:</span>
+                    <span className="text-slate-500 font-medium">Ladder Shift:</span>
                     <button
                       type="button"
                       disabled={isFirst || isUpdating === intake.id}
                       onClick={() => swapLadderPosition(index, 'up')}
                       className="bg-indigo-50 hover:bg-indigo-100 disabled:opacity-30 text-indigo-800 font-bold px-3 py-1.5 rounded-lg border border-indigo-200 transition active:scale-95"
                     >
-                      ▲ Move Up (1 Step)
+                      ▲ Move Up
                     </button>
                     <button
                       type="button"
@@ -287,16 +316,52 @@ export default function DashboardClientView({
                       onClick={() => swapLadderPosition(index, 'down')}
                       className="bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-700 font-bold px-3 py-1.5 rounded-lg border border-slate-300 transition active:scale-95"
                     >
-                      ▼ Move Down (1 Step)
+                      ▼ Move Down
                     </button>
                   </div>
 
-                  <Link
-                    href={`/doctor/intake/${intake.id}`}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition shadow-sm active:scale-95 flex items-center gap-1"
-                  >
-                    Open Patient Details & Consultation Room →
-                  </Link>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Stage Transition Quick Buttons */}
+                    {status !== 'in_progress' && status !== 'doctor_reviewed' && (
+                      <button
+                        type="button"
+                        disabled={isUpdating === intake.id}
+                        onClick={() => changePatientStatus(intake.id, 'in_progress')}
+                        className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-2 rounded-xl transition shadow-sm active:scale-95"
+                      >
+                        🩺 Send to Consultation Room
+                      </button>
+                    )}
+
+                    {status !== 'doctor_reviewed' && (
+                      <button
+                        type="button"
+                        disabled={isUpdating === intake.id}
+                        onClick={() => changePatientStatus(intake.id, 'treated')}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition shadow-sm active:scale-95"
+                      >
+                        ✅ Mark Treated & Cured
+                      </button>
+                    )}
+
+                    {status !== 'pending_review' && (
+                      <button
+                        type="button"
+                        disabled={isUpdating === intake.id}
+                        onClick={() => changePatientStatus(intake.id, 'pending')}
+                        className="bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-semibold px-2.5 py-2 rounded-xl transition"
+                      >
+                        📋 Move Back to Waiting Queue
+                      </button>
+                    )}
+
+                    <Link
+                      href={`/doctor/intake/${intake.id}`}
+                      className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm active:scale-95 flex items-center gap-1"
+                    >
+                      Open Full Details →
+                    </Link>
+                  </div>
                 </div>
               </div>
             );
