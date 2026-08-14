@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 interface DashboardClientViewProps {
   initialIntakes: any[];
@@ -20,14 +21,18 @@ function formatTimeAgo(dateString: string): string {
   return `${Math.floor(diffHours / 24)}d ago`;
 }
 
-export default function DashboardClientView({
+function DashboardContent({
   initialIntakes,
-  doctorDisplayName,
-  doctorRmpNo,
-  clinicDisplayName,
 }: DashboardClientViewProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const tabParam = searchParams.get('tab');
+  const initialTab =
+    tabParam === 'in_progress' ? 'in_progress' : tabParam === 'history' ? 'history' : 'pending';
+
   const [intakes, setIntakes] = useState<any[]>(initialIntakes);
-  const [activeTab, setActiveTab] = useState<'pending' | 'in_progress' | 'history'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'in_progress' | 'history'>(initialTab);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
@@ -35,6 +40,18 @@ export default function DashboardClientView({
   useEffect(() => {
     setIntakes(initialIntakes);
   }, [initialIntakes]);
+
+  // Sync activeTab if URL searchParams change
+  useEffect(() => {
+    if (tabParam === 'in_progress' || tabParam === 'history' || tabParam === 'pending') {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
+
+  const handleTabChange = (tab: 'pending' | 'in_progress' | 'history') => {
+    setActiveTab(tab);
+    window.history.replaceState(null, '', `/doctor/dashboard?tab=${tab}`);
+  };
 
   // Instant local filtering (<10ms)
   const pendingIntakes = intakes.filter((i) => i.status !== 'doctor_reviewed' && i.status !== 'in_progress');
@@ -83,10 +100,21 @@ export default function DashboardClientView({
       treated: 'doctor_reviewed',
     };
 
+    const targetTabMap = {
+      pending: 'pending',
+      in_progress: 'in_progress',
+      treated: 'history',
+    };
+
+    const targetTab = targetTabMap[newStatus] as 'pending' | 'in_progress' | 'history';
+
     // Instant local state update (<10ms)
     setIntakes((prev) =>
       prev.map((item) => (item.id === intakeId ? { ...item, status: dbStatusMap[newStatus] } : item))
     );
+
+    // Automatically switch active tab to destination tab
+    handleTabChange(targetTab);
 
     try {
       await fetch('/api/doctor/reorder-queue', {
@@ -144,11 +172,11 @@ export default function DashboardClientView({
 
   return (
     <div className="space-y-6">
-      {/* Instant 0ms Tab Navigation Bar */}
+      {/* Instant 0ms Tab Navigation Bar with URL SearchParam Sync */}
       <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-3">
         <button
           type="button"
-          onClick={() => setActiveTab('pending')}
+          onClick={() => handleTabChange('pending')}
           className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm transition-all duration-150 ${
             activeTab === 'pending'
               ? 'bg-emerald-600 text-white shadow-md scale-[1.02]'
@@ -167,7 +195,7 @@ export default function DashboardClientView({
 
         <button
           type="button"
-          onClick={() => setActiveTab('in_progress')}
+          onClick={() => handleTabChange('in_progress')}
           className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm transition-all duration-150 ${
             activeTab === 'in_progress'
               ? 'bg-amber-500 text-white shadow-md scale-[1.02]'
@@ -186,7 +214,7 @@ export default function DashboardClientView({
 
         <button
           type="button"
-          onClick={() => setActiveTab('history')}
+          onClick={() => handleTabChange('history')}
           className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm transition-all duration-150 ${
             activeTab === 'history'
               ? 'bg-slate-900 text-white shadow-md scale-[1.02]'
@@ -440,5 +468,13 @@ export default function DashboardClientView({
         </div>
       )}
     </div>
+  );
+}
+
+export default function DashboardClientView(props: DashboardClientViewProps) {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-slate-400">Loading dashboard view...</div>}>
+      <DashboardContent {...props} />
+    </Suspense>
   );
 }
