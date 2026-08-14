@@ -21,6 +21,22 @@ function formatTimeAgo(dateString: string): string {
   return `${Math.floor(diffHours / 24)}d ago`;
 }
 
+function isConsultationStatus(status?: string): boolean {
+  if (!status) return false;
+  const s = status.toLowerCase().trim();
+  return s === 'in_progress' || s === 'in-progress' || s === 'in_consultation' || s === 'consultation' || s === 'under_consultation';
+}
+
+function isReviewedStatus(status?: string): boolean {
+  if (!status) return false;
+  const s = status.toLowerCase().trim();
+  return s === 'doctor_reviewed' || s === 'reviewed' || s === 'treated' || s === 'cured' || s === 'completed' || s === 'done';
+}
+
+function isPendingStatus(status?: string): boolean {
+  return !isConsultationStatus(status) && !isReviewedStatus(status);
+}
+
 function getStoredStatusOverrides(): Record<string, string> {
   if (typeof window === 'undefined') return {};
   try {
@@ -92,13 +108,13 @@ function DashboardContent({
     window.history.replaceState(null, '', `/doctor/dashboard?tab=${tab}`);
   };
 
-  // Synchronously compute effective intakes with overrides (ZERO FLICKER)
+  // Synchronously compute effective intakes with overrides
   const effectiveIntakes = applyOverrides(intakes);
 
-  // Instant local filtering (<10ms)
-  const pendingIntakes = effectiveIntakes.filter((i) => i.status !== 'doctor_reviewed' && i.status !== 'in_progress');
-  const inProgressIntakes = effectiveIntakes.filter((i) => i.status === 'in_progress');
-  const reviewedIntakes = effectiveIntakes.filter((i) => i.status === 'doctor_reviewed');
+  // Robust multi-variant status filtering
+  const pendingIntakes = effectiveIntakes.filter((i) => isPendingStatus(i.status));
+  const inProgressIntakes = effectiveIntakes.filter((i) => isConsultationStatus(i.status));
+  const reviewedIntakes = effectiveIntakes.filter((i) => isReviewedStatus(i.status));
 
   let currentList: any[] = [];
   if (activeTab === 'history') {
@@ -357,17 +373,17 @@ function DashboardContent({
                           Age: {patient?.age} yrs
                         </span>
 
-                        {status === 'doctor_reviewed' && (
+                        {isReviewedStatus(status) && (
                           <span className="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-bold">
                             ✅ Treated & Cured
                           </span>
                         )}
-                        {status === 'in_progress' && (
+                        {isConsultationStatus(status) && (
                           <span className="text-xs bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full font-bold animate-pulse">
                             🩺 Under Consultation Room
                           </span>
                         )}
-                        {status !== 'doctor_reviewed' && status !== 'in_progress' && (
+                        {isPendingStatus(status) && (
                           <span className="text-xs bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full font-semibold">
                             ⏳ Waiting in Queue
                           </span>
@@ -448,7 +464,7 @@ function DashboardContent({
 
                   <div className="flex flex-wrap items-center gap-2">
                     {/* Stage Transition Quick Buttons */}
-                    {status !== 'in_progress' && status !== 'doctor_reviewed' && (
+                    {!isConsultationStatus(status) && !isReviewedStatus(status) && (
                       <button
                         type="button"
                         disabled={isUpdating === intake.id}
@@ -459,7 +475,7 @@ function DashboardContent({
                       </button>
                     )}
 
-                    {status !== 'doctor_reviewed' && (
+                    {!isReviewedStatus(status) && (
                       <button
                         type="button"
                         disabled={isUpdating === intake.id}
@@ -470,7 +486,7 @@ function DashboardContent({
                       </button>
                     )}
 
-                    {status !== 'pending_review' && (
+                    {!isPendingStatus(status) && (
                       <button
                         type="button"
                         disabled={isUpdating === intake.id}
