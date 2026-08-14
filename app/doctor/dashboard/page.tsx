@@ -34,23 +34,26 @@ export default async function DoctorDashboardPage() {
     }
   }
 
-  let query = supabase.from('intakes').select(`
-    id,
-    clinic_id,
-    raw_text,
-    structured_data,
-    urgency_level,
-    red_flags,
-    status,
-    queue_position,
-    created_at,
-    patients (
+  let query = supabase
+    .from('intakes')
+    .select(`
       id,
-      name,
-      age,
-      phone
-    )
-  `);
+      clinic_id,
+      raw_text,
+      structured_data,
+      urgency_level,
+      red_flags,
+      status,
+      queue_position,
+      created_at,
+      patients (
+        id,
+        name,
+        age,
+        phone
+      )
+    `)
+    .order('created_at', { ascending: false });
 
   if (doctorProfile?.clinic_id && doctorProfile.role !== 'super_admin') {
     query = query.eq('clinic_id', doctorProfile.clinic_id);
@@ -60,21 +63,24 @@ export default async function DoctorDashboardPage() {
   const { data: primaryData, error: primaryError } = await query;
 
   if (primaryError) {
-    const { data: fallbackData } = await supabase.from('intakes').select(`
-      id,
-      raw_text,
-      structured_data,
-      urgency_level,
-      red_flags,
-      status,
-      created_at,
-      patients (
+    const { data: fallbackData } = await supabase
+      .from('intakes')
+      .select(`
         id,
-        name,
-        age,
-        phone
-      )
-    `);
+        raw_text,
+        structured_data,
+        urgency_level,
+        red_flags,
+        status,
+        created_at,
+        patients (
+          id,
+          name,
+          age,
+          phone
+        )
+      `)
+      .order('created_at', { ascending: false });
     allIntakes = fallbackData || [];
   } else {
     allIntakes = primaryData || [];

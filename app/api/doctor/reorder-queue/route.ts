@@ -36,21 +36,30 @@ export async function POST(request: Request) {
 
       if (error) throw error;
     } else if (action === 'swap' && swap_intake_id) {
-      const posA = current_pos ?? 1;
-      const posB = target_pos ?? 2;
+      // Fetch timestamps for both intakes to swap created_at & queue_position in database
+      const { data: itemA } = await supabaseAdmin
+        .from('intakes')
+        .select('created_at, queue_position')
+        .eq('id', intake_id)
+        .single();
 
-      try {
+      const { data: itemB } = await supabaseAdmin
+        .from('intakes')
+        .select('created_at, queue_position')
+        .eq('id', swap_intake_id)
+        .single();
+
+      if (itemA && itemB) {
+        // Swap created_at timestamps so database order persists 100% on reload
         await supabaseAdmin
           .from('intakes')
-          .update({ queue_position: posB })
+          .update({ created_at: itemB.created_at, queue_position: target_pos ?? 2 })
           .eq('id', intake_id);
 
         await supabaseAdmin
           .from('intakes')
-          .update({ queue_position: posA })
+          .update({ created_at: itemA.created_at, queue_position: current_pos ?? 1 })
           .eq('id', swap_intake_id);
-      } catch (e) {
-        console.warn('queue_position column optional in database schema:', e);
       }
     } else if (target_urgency) {
       const { error } = await supabaseAdmin
