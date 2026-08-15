@@ -30,7 +30,7 @@ function isOptOut(text: string): boolean {
 function isResetOrNewRequest(text: string): boolean {
   const normalized = text.trim().toLowerCase();
   const resetTerms = ['new', 'reset', 'restart', 'hi', 'hello', 'start', 'menu', 'change doctor', 'change hospital'];
-  return resetTerms.some((term) => normalized === term || normalized.startsWith('join_') || normalized.startsWith('clinic_'));
+  return resetTerms.some((term) => normalized === term || normalized.startsWith('join_') || normalized.startsWith('clinic_') || normalized.startsWith('hosp_'));
 }
 
 export async function POST(request: Request) {
@@ -57,16 +57,24 @@ export async function POST(request: Request) {
       });
     }
 
-    // Check for QR keyword match e.g. "JOIN_CLINIC_HEALING_TOUCH" or "JOIN_CLINIC_VinayKrishna"
+    // Check for QR keyword match e.g. "JOIN_HOSP_HealingTouch" or "HOSP_HealingTouch" or "JOIN_CLINIC_VinayKrishna"
     let matchedClinicId: string | null = null;
     let matchedClinicName: string | null = null;
-    const clinicCodeMatch = bodyText.match(/JOIN_CLINIC_[A-Z0-9_-]+/i) || bodyText.match(/CLINIC_[A-Z0-9_-]+/i);
+    const clinicCodeMatch =
+      bodyText.match(/JOIN_CLINIC_[A-Z0-9_-]+/i) ||
+      bodyText.match(/CLINIC_[A-Z0-9_-]+/i) ||
+      bodyText.match(/JOIN_HOSP_[A-Z0-9_-]+/i) ||
+      bodyText.match(/HOSP_[A-Z0-9_-]+/i);
 
     if (clinicCodeMatch) {
       const rawCode = clinicCodeMatch[0].toUpperCase();
-      const code = rawCode.replace('JOIN_', '');
+      const cleanCode = rawCode.replace('JOIN_', '');
       const matched = clinicList.find(
-        (c: any) => c.code.toUpperCase() === code || c.code.toUpperCase() === `CLINIC_${code}` || rawCode.includes(c.code.toUpperCase())
+        (c: any) =>
+          c.code.toUpperCase() === cleanCode ||
+          c.code.toUpperCase() === rawCode ||
+          c.code.toUpperCase().includes(cleanCode) ||
+          cleanCode.includes(c.code.toUpperCase())
       );
       if (matched) {
         matchedClinicId = matched.id;
