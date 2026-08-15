@@ -27,6 +27,12 @@ function isOptOut(text: string): boolean {
   return ['stop', 'unsubscribe', 'cancel', 'opt out', 'no', '2', 'nahi'].includes(normalized);
 }
 
+function isResetOrNewRequest(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  const resetTerms = ['new', 'reset', 'restart', 'hi', 'hello', 'start', 'menu', 'change doctor', 'change hospital'];
+  return resetTerms.some((term) => normalized === term || normalized.startsWith('join_') || normalized.startsWith('clinic_'));
+}
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -51,6 +57,23 @@ export async function POST(request: Request) {
       });
     }
 
+    // Check for QR keyword match e.g. "JOIN_CLINIC_HEALING_TOUCH" or "JOIN_CLINIC_VinayKrishna"
+    let matchedClinicId: string | null = null;
+    let matchedClinicName: string | null = null;
+    const clinicCodeMatch = bodyText.match(/JOIN_CLINIC_[A-Z0-9_-]+/i) || bodyText.match(/CLINIC_[A-Z0-9_-]+/i);
+
+    if (clinicCodeMatch) {
+      const rawCode = clinicCodeMatch[0].toUpperCase();
+      const code = rawCode.replace('JOIN_', '');
+      const matched = clinicList.find(
+        (c: any) => c.code.toUpperCase() === code || c.code.toUpperCase() === `CLINIC_${code}` || rawCode.includes(c.code.toUpperCase())
+      );
+      if (matched) {
+        matchedClinicId = matched.id;
+        matchedClinicName = matched.name;
+      }
+    }
+
     // 2. Fetch or initialize WhatsApp session
     let { data: session } = await supabase
       .from('whatsapp_sessions')
@@ -58,17 +81,25 @@ export async function POST(request: Request) {
       .eq('phone', fromPhone)
       .maybeSingle();
 
-    // Check for QR keyword match e.g. "JOIN_CLINIC_VinayKrishna"
-    let matchedClinicId: string | null = null;
-    const clinicCodeMatch = bodyText.match(/JOIN_CLINIC_[A-Z0-9_-]+/i) || bodyText.match(/CLINIC_[A-Z0-9_-]+/i);
+    const isNewDoctorScan = Boolean(clinicCodeMatch);
+    const isResetCommand = isResetOrNewRequest(bodyText);
 
-    if (clinicCodeMatch) {
-      const code = clinicCodeMatch[0].toUpperCase().replace('JOIN_', '');
-      const matched = clinicList.find((c: any) => c.code.toUpperCase() === code || c.code.toUpperCase() === `CLINIC_${code}`);
-      if (matched) matchedClinicId = matched.id;
-    }
+    // If scanning a new doctor QR or sending NEW/RESET, reset session state automatically!
+    if (session && (isNewDoctorScan || isResetCommand)) {
+      const targetClinicId = matchedClinicId || session.temp_clinic_id;
+      const { data: updatedSession } = await supabase
+        .from('whatsapp_sessions')
+        .update({
+          state: 'AWAITING_CONSENT',
+          temp_clinic_id: targetClinicId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('phone', fromPhone)
+        .select('*')
+        .single();
 
-    if (!session) {
+      session = updatedSession;
+    } else if (!session) {
       const { data: newSession } = await supabase
         .from('whatsapp_sessions')
         .insert([
@@ -115,7 +146,7 @@ export async function POST(request: Request) {
 
     // STATE 1: AWAITING CONSENT (Interactive Touch 1 or 2)
     if (currentState === 'AWAITING_CONSENT') {
-      if (isConsentAffirmative(bodyText)) {
+      if (isConsentAffirmative(bodyText) || isNewDoctorScan) {
         await supabase
           .from('whatsapp_sessions')
           .update({
@@ -126,7 +157,11 @@ export async function POST(request: Request) {
           })
           .eq('phone', fromPhone);
 
-        let menuMsg = `Thank you for consenting! 🙏\n\n🏥 Please select your Consulting Hospital Department:\n\n`;
+        let welcomeBanner = matchedClinicName
+          ? `Welcome to ${matchedClinicName}! 🏥`
+          : `Welcome to VaidyaDrishti Hospital Portal! 🏥`;
+
+        let menuMsg = `${welcomeBanner}\n\nPlease select your Consulting Hospital Department:\n\n`;
         clinicList.forEach((clinic: any, idx: number) => {
           const doc = doctorList.find((d: any) => d.clinic_id === clinic.id);
           menuMsg += `${idx + 1}️⃣ ${clinic.name} — ${doc?.name ? `Dr. ${doc.name}` : 'OPD'}\n`;
@@ -321,7 +356,7 @@ export async function POST(request: Request) {
 
         return new Response(
           createTwiMLResponse(
-            '🎙️ Voice note received! Converting audio to medical summary for your doctor. You can record more voice notes or reply anytime.'
+            '🎙️ Voice note received! Converting audio to medical summary for your doctor.\n\n🔄 To consult a NEW doctor or hospital, reply "NEW" or scan their QR code!'
           ),
           { headers: { 'Content-Type': 'text/xml' } }
         );
@@ -366,7 +401,7 @@ export async function POST(request: Request) {
 
         return new Response(
           createTwiMLResponse(
-            '👨‍⚕️ Your health details have been delivered directly to your consulting doctor\'s queue!\n\nThis is not a medical diagnosis. In a severe emergency, seek immediate in-person hospital care.'
+            '👨‍⚕️ Your health details have been delivered directly to your consulting doctor\'s queue!\n\n🔄 To consult a NEW doctor or hospital, reply "NEW" or scan their QR code!'
           ),
           { headers: { 'Content-Type': 'text/xml' } }
         );
@@ -374,12 +409,12 @@ export async function POST(request: Request) {
     }
 
     return new Response(
-      createTwiMLResponse('Thank you for contacting VaidyaDrishti.'),
+      createTwiMLResponse('Thank you for contacting VaidyaDrishti. Reply NEW anytime to start a new consultation!'),
       { headers: { 'Content-Type': 'text/xml' } }
     );
   } catch (err: any) {
     console.error('Error in WhatsApp webhook:', err);
-    return new Response(createTwiMLResponse('An error occurred. Please try again.'), {
+    return new Response(createTwiMLResponse('An error occurred. Reply NEW to restart.'), {
       headers: { 'Content-Type': 'text/xml' },
       status: 500,
     });
