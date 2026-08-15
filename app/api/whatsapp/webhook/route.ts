@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     const fromPhone = (params.From || '').replace('whatsapp:', '').trim();
     const bodyText = (params.Body || '').trim();
 
-    // 1. Fetch available clinics & doctors for interactive menus
+    // 1. Fetch available clinics & doctors
     const { data: clinics } = await supabase.from('clinics').select('id, name, code');
     const { data: doctors } = await supabase.from('doctors').select('id, name, clinic_id');
 
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       const { data: updatedSession } = await supabase
         .from('whatsapp_sessions')
         .update({
-          state: 'AWAITING_CONSENT',
+          state: isNewDoctorScan && matchedClinicId ? 'SELECT_GENDER' : 'AWAITING_CONSENT',
           temp_clinic_id: targetClinicId,
           updated_at: new Date().toISOString(),
         })
@@ -113,8 +113,8 @@ export async function POST(request: Request) {
         .insert([
           {
             phone: fromPhone,
-            state: 'AWAITING_CONSENT',
-            consent_granted: false,
+            state: matchedClinicId ? 'SELECT_GENDER' : 'AWAITING_CONSENT',
+            consent_granted: true,
             temp_clinic_id: matchedClinicId,
           },
         ])
@@ -152,9 +152,49 @@ export async function POST(request: Request) {
 
     const currentState = session?.state || 'AWAITING_CONSENT';
 
-    // STATE 1: AWAITING CONSENT (Interactive Touch 1 or 2)
+    // IF PATIENT SCANNED A SPECIFIC QR CODE (e.g. Healing Touch Hospital), DO NOT SHOW ALL HOSPITALS LIST!
+    if (isNewDoctorScan && matchedClinicId) {
+      await supabase
+        .from('whatsapp_sessions')
+        .update({
+          state: 'SELECT_GENDER',
+          temp_clinic_id: matchedClinicId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('phone', fromPhone);
+
+      return new Response(
+        createTwiMLResponse(
+          `Welcome to ${matchedClinicName || 'Healing Touch Hospital'}! 🏥\n\n👤 Please select Patient Sex / Gender:\n\n1️⃣ Male\n2️⃣ Female\n3️⃣ Other\n\nReply 1, 2, or 3!`
+        ),
+        { headers: { 'Content-Type': 'text/xml' } }
+      );
+    }
+
+    // STATE 1: AWAITING CONSENT
     if (currentState === 'AWAITING_CONSENT') {
-      if (isConsentAffirmative(bodyText) || isNewDoctorScan) {
+      if (isConsentAffirmative(bodyText)) {
+        // If clinic is already pre-selected, go directly to SELECT_GENDER
+        if (session?.temp_clinic_id) {
+          const preSelected = clinicList.find((c: any) => c.id === session.temp_clinic_id);
+          await supabase
+            .from('whatsapp_sessions')
+            .update({
+              consent_granted: true,
+              consented_at: new Date().toISOString(),
+              state: 'SELECT_GENDER',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('phone', fromPhone);
+
+          return new Response(
+            createTwiMLResponse(
+              `Welcome to ${preSelected?.name || 'your selected clinic'}! 🏥\n\n👤 Please select Patient Sex / Gender:\n\n1️⃣ Male\n2️⃣ Female\n3️⃣ Other\n\nReply 1, 2, or 3!`
+            ),
+            { headers: { 'Content-Type': 'text/xml' } }
+          );
+        }
+
         await supabase
           .from('whatsapp_sessions')
           .update({
@@ -165,11 +205,7 @@ export async function POST(request: Request) {
           })
           .eq('phone', fromPhone);
 
-        let welcomeBanner = matchedClinicName
-          ? `Welcome to ${matchedClinicName}! 🏥`
-          : `Welcome to VaidyaDrishti Hospital Portal! 🏥`;
-
-        let menuMsg = `${welcomeBanner}\n\nPlease select your Consulting Hospital Department:\n\n`;
+        let menuMsg = `Thank you for consenting! 🙏\n\nPlease select your Consulting Hospital Department:\n\n`;
         clinicList.forEach((clinic: any, idx: number) => {
           const doc = doctorList.find((d: any) => d.clinic_id === clinic.id);
           menuMsg += `${idx + 1}️⃣ ${clinic.name} — ${doc?.name ? `Dr. ${doc.name}` : 'OPD'}\n`;
