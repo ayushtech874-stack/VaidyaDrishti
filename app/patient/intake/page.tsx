@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import WebVoiceRecorder from './WebVoiceRecorder';
+import { normalizePhone } from '@/lib/utils';
 
 export default function PatientIntakePage() {
   const [name, setName] = useState('');
@@ -62,18 +63,30 @@ export default function PatientIntakePage() {
     setErrorMsg('');
 
     try {
-      // 1. Check if patient already exists by phone
+      // 1. STRICT SINGLE E.164 PHONE NORMALIZATION (+91XXXXXXXXXX)
+      const normalizedPhone = normalizePhone(phone.trim());
+
+      // 2. Check if patient already exists by normalized phone
       let patientId: string | null = null;
       const { data: existingPatient } = await supabase
         .from('patients')
         .select('id')
-        .eq('phone', phone.trim())
+        .eq('phone', normalizedPhone)
         .maybeSingle();
 
       if (existingPatient) {
         patientId = existingPatient.id;
+        await supabase
+          .from('patients')
+          .update({
+            name: name.trim(),
+            age: parseInt(age, 10),
+            sex: sex,
+            clinic_id: selectedClinicId,
+          })
+          .eq('id', patientId);
       } else {
-        // Create new patient with sex/gender
+        // Create new patient with normalized E.164 phone
         let newPatientRes = await supabase
           .from('patients')
           .insert([
@@ -82,7 +95,7 @@ export default function PatientIntakePage() {
               name: name.trim(),
               age: parseInt(age, 10),
               sex: sex,
-              phone: phone.trim(),
+              phone: normalizedPhone,
             },
           ])
           .select('id')
@@ -95,7 +108,7 @@ export default function PatientIntakePage() {
               {
                 name: name.trim(),
                 age: parseInt(age, 10),
-                phone: phone.trim(),
+                phone: normalizedPhone,
               },
             ])
             .select('id')
@@ -106,7 +119,7 @@ export default function PatientIntakePage() {
         patientId = newPatientRes.data.id;
       }
 
-      // Find doctor name for confirmation message
+      // Find doctor assigned to this clinic
       const targetDoc = doctorsList.find((d) => d.clinic_id === selectedClinicId);
       const targetClinic = clinicsList.find((c) => c.id === selectedClinicId);
       if (targetDoc) setSelectedDoctorName(targetDoc.name);
@@ -114,13 +127,14 @@ export default function PatientIntakePage() {
 
       const combinedText = rawText.trim() || `[Voice Intake Record - ${recordedAudioBlobs.length} Audio Clips Attached]`;
 
-      // 2. Insert new intake row
+      // 3. Insert new intake row with BOTH clinic_id and doctor_id
       let newIntakeRes = await supabase
         .from('intakes')
         .insert([
           {
             clinic_id: selectedClinicId,
-            department_id: selectedDepartmentId || null,
+            doctor_id: targetDoc?.id || null,
+            department_id: targetDoc?.department_id || selectedDepartmentId || null,
             patient_id: patientId,
             raw_text: combinedText,
             status: 'pending_review',
@@ -147,7 +161,7 @@ export default function PatientIntakePage() {
       if (newIntakeRes.error) throw newIntakeRes.error;
       const newIntake = newIntakeRes.data;
 
-      // 3. Upload recorded audio blobs to Supabase Storage if present
+      // 4. Upload recorded audio blobs to Supabase Storage if present
       if (newIntake?.id && recordedAudioBlobs.length > 0) {
         for (let idx = 0; idx < recordedAudioBlobs.length; idx++) {
           const blob = recordedAudioBlobs[idx];
@@ -169,7 +183,7 @@ export default function PatientIntakePage() {
         }
       }
 
-      // 4. Fire call to Groq structuring layer
+      // 5. Fire call to Groq structuring layer
       if (newIntake?.id) {
         fetch('/api/structure-intake', {
           method: 'POST',

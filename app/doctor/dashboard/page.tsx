@@ -47,7 +47,7 @@ export default async function DoctorDashboardPage() {
   const clinicId = doctorProfile?.clinic_id;
   const doctorId = doctorProfile?.id;
 
-  // Build Query with Multi-Tenant Doctor & Clinic Isolation
+  // STRICT SINGLE-DOCTOR QUEUE FILTERING (0 Null Fallback Leakage)
   let query = supabaseAdmin
     .from('intakes')
     .select(`
@@ -70,10 +70,10 @@ export default async function DoctorDashboardPage() {
     `)
     .order('created_at', { ascending: false });
 
-  // Filter strictly by doctor_id or clinic_id unless super_admin
   if (doctorProfile?.role !== 'super_admin') {
-    if (doctorId && clinicId) {
-      query = query.or(`doctor_id.eq.${doctorId},and(clinic_id.eq.${clinicId},doctor_id.is.null)`);
+    if (doctorId) {
+      // STRICT FILTER BY DOCTOR_ID ONLY — No NULL fallback clause!
+      query = query.eq('doctor_id', doctorId);
     } else if (clinicId) {
       query = query.eq('clinic_id', clinicId);
     }
@@ -104,8 +104,10 @@ export default async function DoctorDashboardPage() {
       `)
       .order('created_at', { ascending: false });
 
-    if (doctorProfile?.role !== 'super_admin' && clinicId) {
-      fallbackQuery = fallbackQuery.or(`clinic_id.eq.${clinicId},clinic_id.is.null`);
+    if (doctorProfile?.role !== 'super_admin' && doctorId) {
+      fallbackQuery = fallbackQuery.eq('doctor_id', doctorId);
+    } else if (doctorProfile?.role !== 'super_admin' && clinicId) {
+      fallbackQuery = fallbackQuery.eq('clinic_id', clinicId);
     }
 
     const { data: fallbackData } = await fallbackQuery;

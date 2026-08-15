@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import twilio from 'twilio';
+import { normalizePhone } from '@/lib/utils';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
@@ -12,18 +13,6 @@ export function createTwiMLResponse(messageText: string): string {
   const twiml = new twilio.twiml.MessagingResponse();
   twiml.message(messageText);
   return twiml.toString();
-}
-
-export function normalizePhone(phone: string): string {
-  if (!phone) return '';
-  const digits = phone.replace(/\D/g, '');
-  if (digits.length === 10) {
-    return `+91${digits}`;
-  }
-  if (digits.length === 12 && digits.startsWith('91')) {
-    return `+${digits}`;
-  }
-  return `+${digits}`;
 }
 
 export function parseGenderInput(text: string): string {
@@ -43,8 +32,9 @@ export async function POST(request: Request) {
       params[key] = value.toString();
     });
 
-    const rawFromPhone = (params.From || '').replace('whatsapp:', '').trim();
-    const fromPhone = normalizePhone(rawFromPhone);
+    const rawFrom = (params.From || '').replace('whatsapp:', '').trim();
+    // 1. STRICT SINGLE-FORMAT E.164 NORMALIZATION (+91XXXXXXXXXX)
+    const fromPhone = normalizePhone(rawFrom);
     const bodyText = (params.Body || '').trim();
 
     if (!fromPhone) {
@@ -57,14 +47,14 @@ export async function POST(request: Request) {
     const nowMs = Date.now();
     const TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes session timeout
 
-    // 1. Fetch Clinics & Doctors from Supabase
+    // 2. Fetch Clinics & Doctors from Supabase
     const { data: clinics } = await supabase.from('clinics').select('id, name, code, facility_type');
     const { data: doctors } = await supabase.from('doctors').select('id, name, clinic_id, department_id');
 
     const clinicList: any[] = clinics || [];
     const doctorList: any[] = doctors || [];
 
-    // QR Code Match detection (e.g. JOIN_CLINIC_102, JOIN_HOSP_HealingTouch, CLINIC_VinayKrishna)
+    // QR Code Match detection
     let scannedClinic: any = null;
     let scannedDoctor: any = null;
     const qrMatch =
@@ -90,11 +80,11 @@ export async function POST(request: Request) {
       }
     }
 
-    // 2. Fetch Active Session for this normalized phone number
+    // 3. Strict E.164 Phone Lookup for Active Session
     const { data: existingSessions } = await supabase
       .from('whatsapp_sessions')
       .select('*')
-      .or(`phone.eq.${fromPhone},phone.eq.${rawFromPhone}`)
+      .eq('phone', fromPhone)
       .order('updated_at', { ascending: false });
 
     let activeSession = (existingSessions || []).find(
@@ -103,7 +93,7 @@ export async function POST(request: Request) {
         (!s.status && s.state !== 'completed' && s.state !== 'ended' && s.state !== 'expired')
     );
 
-    // 3. SESSION TIMEOUT CHECK (30 Minutes inactivity)
+    // 4. SESSION TIMEOUT CHECK (30 Minutes inactivity)
     if (activeSession) {
       const lastMsgTime = new Date(
         activeSession.last_message_at || activeSession.updated_at || activeSession.consented_at || 0
@@ -130,7 +120,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // 4. EXPLICIT CONTROL KEYWORDS CHECK (END/RESTART)
+    // 5. EXPLICIT CONTROL KEYWORDS CHECK (END/RESTART)
     const normalizedBody = bodyText.toUpperCase();
 
     if (['END', 'STOP', 'CANCEL'].includes(normalizedBody)) {
@@ -199,12 +189,11 @@ export async function POST(request: Request) {
       }
     }
 
-    // 5. MID-CONVERSATION QR CODE SWITCH CONFIRMATION
+    // 6. MID-CONVERSATION QR CODE SWITCH CONFIRMATION
     if (activeSession && scannedClinic) {
       const activeClinicId = activeSession.clinic_id || activeSession.temp_clinic_id;
       const draft = activeSession.draft_data || {};
 
-      // If user is currently confirming a pending switch
       if (draft.pending_switch_clinic_id) {
         if (['YES', '1', 'AGREE', 'SURE', 'CONFIRM'].includes(normalizedBody)) {
           const newClinicId = draft.pending_switch_clinic_id;
@@ -262,7 +251,6 @@ export async function POST(request: Request) {
         }
       }
 
-      // If user scanned a DIFFERENT clinic QR code mid-session
       if (scannedClinic.id !== activeClinicId) {
         const currentClinic = clinicList.find((c: any) => c.id === activeClinicId);
         const currentDoc = doctorList.find((d: any) => d.clinic_id === activeClinicId);
@@ -291,7 +279,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // 6. NO ACTIVE SESSION: Create New Session
+    // 7. NO ACTIVE SESSION: Create New Session
     if (!activeSession) {
       if (scannedClinic) {
         const { data: newSession } = await supabase
@@ -350,7 +338,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // 7. STEP-BASED CONVERSATION STATE MACHINE
+    // 8. STEP-BASED CONVERSATION STATE MACHINE
     const currentStep = activeSession.current_step || activeSession.state || 'awaiting_name';
     const draft = activeSession.draft_data || {};
 
@@ -462,12 +450,12 @@ export async function POST(request: Request) {
       const clinicIdVal = activeSession.clinic_id || activeSession.temp_clinic_id || clinicList[0]?.id;
       const doctorIdVal = activeSession.doctor_id || null;
 
-      // 1. Create/Update Patient Record with E.164 Normalized Phone
+      // 9. Create/Update Patient Record with Strict Single E.164 Phone Format
       let patientId: string;
       const { data: existingPatient } = await supabase
         .from('patients')
         .select('id')
-        .or(`phone.eq.${fromPhone},phone.eq.${rawFromPhone}`)
+        .eq('phone', fromPhone)
         .maybeSingle();
 
       if (existingPatient) {
@@ -514,7 +502,7 @@ export async function POST(request: Request) {
         patientId = newP.data!.id;
       }
 
-      // 2. Insert Intake Record with BOTH clinic_id and doctor_id
+      // 10. Insert Intake Record with BOTH clinic_id and doctor_id
       let newIntakeRes = await supabase
         .from('intakes')
         .insert([
@@ -550,7 +538,7 @@ export async function POST(request: Request) {
 
       const newIntake = newIntakeRes.data;
 
-      // 3. Trigger Async Structuring / ASR
+      // 11. Trigger Async Structuring / ASR
       if (newIntake?.id) {
         const origin = new URL(request.url).origin;
         if (isAudio && mediaUrl) {
@@ -568,7 +556,7 @@ export async function POST(request: Request) {
         }
       }
 
-      // 4. Complete Session
+      // 12. Complete Session
       await supabase
         .from('whatsapp_sessions')
         .update({
