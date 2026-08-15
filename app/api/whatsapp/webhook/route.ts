@@ -44,17 +44,17 @@ export async function POST(request: Request) {
       });
     }
 
-    // 1. Load Clinics, Departments & Doctors
+    // 1. Fetch exact Clinics & Doctors from Supabase
     const { data: clinics } = await supabase.from('clinics').select('id, name, code');
-    const { data: departments } = await supabase.from('departments').select('id, clinic_id, name, code');
     const { data: doctors } = await supabase.from('doctors').select('id, name, clinic_id, department_id');
 
     const clinicList: any[] = clinics || [];
-    const deptList: any[] = departments || [];
     const doctorList: any[] = doctors || [];
 
-    // Check for QR keyword match e.g. "JOIN_HOSP_HealingTouch" or "HOSP_HealingTouch"
+    // Match QR code keyword e.g. "JOIN_HOSP_HealingTouch" or "HOSP_HealingTouch"
     let matchedClinic: any = null;
+    let matchedDoctor: any = null;
+
     const clinicCodeMatch =
       bodyText.match(/JOIN_CLINIC_[A-Z0-9_-]+/i) ||
       bodyText.match(/CLINIC_[A-Z0-9_-]+/i) ||
@@ -64,6 +64,7 @@ export async function POST(request: Request) {
     if (clinicCodeMatch) {
       const rawCode = clinicCodeMatch[0].toUpperCase();
       const cleanCode = rawCode.replace('JOIN_', '');
+
       matchedClinic = clinicList.find(
         (c: any) =>
           c.code.toUpperCase() === cleanCode ||
@@ -71,6 +72,10 @@ export async function POST(request: Request) {
           c.code.toUpperCase().includes(cleanCode) ||
           cleanCode.includes(c.code.toUpperCase())
       );
+
+      if (matchedClinic) {
+        matchedDoctor = doctorList.find((d: any) => d.clinic_id === matchedClinic.id);
+      }
     }
 
     // 2. Fetch or initialize WhatsApp session
@@ -83,12 +88,12 @@ export async function POST(request: Request) {
     const isNewDoctorScan = Boolean(clinicCodeMatch && matchedClinic);
     const isResetCommand = isResetOrNewRequest(bodyText);
 
-    // If scanning a QR code or sending RESET/NEW, force state update in session
+    // CRITICAL FIX: If scanning a QR code, NEVER save the QR command text into intakes! Reset state immediately!
     let currentState = session?.state || 'AWAITING_CONSENT';
 
     if (!session) {
-      const targetClinicId = matchedClinic?.id || null;
-      const initialState = matchedClinic ? 'SELECT_DEPARTMENT' : 'AWAITING_CONSENT';
+      const targetClinicId = matchedClinic?.id || clinicList[0]?.id;
+      const initialState = matchedClinic ? 'SELECT_GENDER' : 'AWAITING_CONSENT';
 
       const { data: newSession } = await supabase
         .from('whatsapp_sessions')
@@ -106,8 +111,8 @@ export async function POST(request: Request) {
       session = newSession;
       currentState = initialState;
     } else if (isNewDoctorScan || isResetCommand) {
-      const targetClinicId = matchedClinic?.id || session.temp_clinic_id;
-      const nextState = matchedClinic ? 'SELECT_DEPARTMENT' : 'AWAITING_CONSENT';
+      const targetClinicId = matchedClinic?.id || session.temp_clinic_id || clinicList[0]?.id;
+      const nextState = matchedClinic ? 'SELECT_GENDER' : 'SELECT_DEPARTMENT';
 
       const { data: updatedSession } = await supabase
         .from('whatsapp_sessions')
@@ -124,28 +129,29 @@ export async function POST(request: Request) {
       currentState = nextState;
     }
 
-    // STATE 1: SELECT DEPARTMENT (When QR Scanned or Consent Granted)
-    if (currentState === 'SELECT_DEPARTMENT') {
-      // Check if user is replying with a choice e.g. "1" or "2"
-      const choiceNum = parseInt(bodyText.trim(), 10);
-      const targetClinicId = matchedClinic?.id || session?.temp_clinic_id || clinicList[0]?.id;
-      const activeClinic = clinicList.find((c: any) => c.id === targetClinicId) || clinicList[0];
+    // If patient scanned a specific QR code, lock hospital and prompt gender directly!
+    if (isNewDoctorScan && matchedClinic) {
+      const docName = matchedDoctor?.name ? `(Assigned: ${matchedDoctor.name})` : '';
 
-      // Get departments for this clinic
-      const clinicDepts = deptList.filter((d: any) => d.clinic_id === activeClinic?.id);
-      
-      // If user provided a valid department choice number
-      if (!isNaN(choiceNum) && choiceNum >= 1 && choiceNum <= (clinicDepts.length || clinicList.length)) {
-        let selectedDept: any = null;
-        if (clinicDepts.length > 0) {
-          selectedDept = clinicDepts[choiceNum - 1];
-        }
+      return new Response(
+        createTwiMLResponse(
+          `Welcome to ${matchedClinic.name}! 🏥 ${docName}\n\n👤 Please select Patient Sex / Gender:\n\n1️⃣ Male\n2️⃣ Female\n3️⃣ Other\n\nReply 1, 2, or 3!`
+        ),
+        { headers: { 'Content-Type': 'text/xml' } }
+      );
+    }
+
+    // STATE 1: SELECT DEPARTMENT (When general menu requested)
+    if (currentState === 'SELECT_DEPARTMENT') {
+      const choiceNum = parseInt(bodyText.trim(), 10);
+      if (!isNaN(choiceNum) && choiceNum >= 1 && choiceNum <= clinicList.length) {
+        const selectedClinic = clinicList[choiceNum - 1];
+        const assignedDoc = doctorList.find((d: any) => d.clinic_id === selectedClinic.id);
 
         await supabase
           .from('whatsapp_sessions')
           .update({
-            temp_clinic_id: activeClinic?.id,
-            temp_department_id: selectedDept?.id || null,
+            temp_clinic_id: selectedClinic.id,
             state: 'SELECT_GENDER',
             updated_at: new Date().toISOString(),
           })
@@ -153,27 +159,17 @@ export async function POST(request: Request) {
 
         return new Response(
           createTwiMLResponse(
-            `Selected: ${activeClinic?.name || 'Hospital'} ${selectedDept ? `— ${selectedDept.name}` : ''} 🏥\n\n👤 Please select Patient Sex / Gender:\n\n1️⃣ Male\n2️⃣ Female\n3️⃣ Other\n\nReply 1, 2, or 3!`
+            `Selected: ${selectedClinic.name} 🏥 ${assignedDoc?.name ? `(${assignedDoc.name})` : ''}\n\n👤 Please select Patient Sex / Gender:\n\n1️⃣ Male\n2️⃣ Female\n3️⃣ Other\n\nReply 1, 2, or 3!`
           ),
           { headers: { 'Content-Type': 'text/xml' } }
         );
       }
 
-      // Present Department & Doctor Selection Menu for this Hospital
-      let menuMsg = `Welcome to ${activeClinic?.name || 'VaidyaDrishti Hospital'}! 🏥\n\nPlease select your Consulting Hospital Department & Doctor:\n\n`;
-
-      if (clinicDepts.length > 0) {
-        clinicDepts.forEach((dept: any, idx: number) => {
-          const doc = doctorList.find((d: any) => d.department_id === dept.id || d.clinic_id === activeClinic?.id);
-          menuMsg += `${idx + 1}️⃣ ${dept.name} — ${doc?.name ? `Dr. ${doc.name}` : 'On-Duty OPD Doctor'}\n`;
-        });
-      } else {
-        clinicList.forEach((clinic: any, idx: number) => {
-          const doc = doctorList.find((d: any) => d.clinic_id === clinic.id);
-          menuMsg += `${idx + 1}️⃣ ${clinic.name} — ${doc?.name ? `Dr. ${doc.name}` : 'OPD Doctor'}\n`;
-        });
-      }
-
+      let menuMsg = `Welcome to VaidyaDrishti Tele-Triage Portal! 🏥\n\nPlease select your Consulting Hospital / Doctor:\n\n`;
+      clinicList.forEach((clinic: any, idx: number) => {
+        const doc = doctorList.find((d: any) => d.clinic_id === clinic.id);
+        menuMsg += `${idx + 1}️⃣ ${clinic.name} ${doc?.name ? `— ${doc.name}` : ''}\n`;
+      });
       menuMsg += `\nReply with number (e.g., 1 or 2)!`;
 
       return new Response(createTwiMLResponse(menuMsg), {
@@ -221,11 +217,11 @@ export async function POST(request: Request) {
         .maybeSingle();
 
       const sexVal = session?.temp_gender || 'Male';
-      const clinicVal = session?.temp_clinic_id || (clinicList[0]?.id || null);
+      const clinicVal = session?.temp_clinic_id || clinicList[0]?.id;
 
       if (existingPatient) {
         patientId = existingPatient.id;
-        await supabase.from('patients').update({ name, age, sex: sexVal }).eq('id', patientId);
+        await supabase.from('patients').update({ name, age, sex: sexVal, clinic_id: clinicVal }).eq('id', patientId);
       } else {
         let newP = await supabase
           .from('patients')
@@ -278,8 +274,7 @@ export async function POST(request: Request) {
         patientId = p?.id;
       }
 
-      const clinicVal = session?.temp_clinic_id || (clinicList[0]?.id || null);
-      const deptVal = session?.temp_department_id || null;
+      const clinicVal = session?.temp_clinic_id || clinicList[0]?.id;
 
       if (isAudio) {
         const mediaUrl = params.MediaUrl0;
@@ -289,7 +284,6 @@ export async function POST(request: Request) {
           .insert([
             {
               clinic_id: clinicVal,
-              department_id: deptVal,
               patient_id: patientId,
               raw_text: '[Voice Note Transcribing Pending...]',
               is_voice_intake: true,
@@ -337,7 +331,6 @@ export async function POST(request: Request) {
           .insert([
             {
               clinic_id: clinicVal,
-              department_id: deptVal,
               patient_id: patientId,
               raw_text: bodyText,
               is_voice_intake: false,
