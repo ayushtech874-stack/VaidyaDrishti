@@ -24,7 +24,7 @@ export default async function DoctorDashboardPage() {
   if (user) {
     const { data: docData } = await supabaseAdmin
       .from('doctors')
-      .select('id, name, email, rmp_registration_number, clinic_id, role')
+      .select('id, name, email, rmp_registration_number, clinic_id, department_id, role')
       .eq('id', user.id)
       .single();
 
@@ -33,7 +33,7 @@ export default async function DoctorDashboardPage() {
       if (docData.clinic_id) {
         const { data: clinicData } = await supabaseAdmin
           .from('clinics')
-          .select('name, code')
+          .select('name, code, facility_type')
           .eq('id', docData.clinic_id)
           .single();
         clinicProfile = clinicData;
@@ -45,13 +45,15 @@ export default async function DoctorDashboardPage() {
   const doctorRmpNo = doctorProfile?.rmp_registration_number || 'VERIFIED-RMP';
   const clinicDisplayName = clinicProfile?.name || 'Assigned Clinic';
   const clinicId = doctorProfile?.clinic_id;
+  const doctorId = doctorProfile?.id;
 
-  // Build Query with Multi-Tenant Clinic Isolation
+  // Build Query with Multi-Tenant Doctor & Clinic Isolation
   let query = supabaseAdmin
     .from('intakes')
     .select(`
       id,
       clinic_id,
+      doctor_id,
       raw_text,
       structured_data,
       urgency_level,
@@ -68,21 +70,25 @@ export default async function DoctorDashboardPage() {
     `)
     .order('created_at', { ascending: false });
 
-  // Filter strictly by doctor's clinic unless super_admin
-  if (clinicId && doctorProfile?.role !== 'super_admin') {
-    query = query.eq('clinic_id', clinicId);
+  // Filter strictly by doctor_id or clinic_id unless super_admin
+  if (doctorProfile?.role !== 'super_admin') {
+    if (doctorId && clinicId) {
+      query = query.or(`doctor_id.eq.${doctorId},and(clinic_id.eq.${clinicId},doctor_id.is.null)`);
+    } else if (clinicId) {
+      query = query.eq('clinic_id', clinicId);
+    }
   }
 
   let allIntakes: any[] = [];
   const { data: primaryData, error } = await query;
 
   if (error || !primaryData || primaryData.length === 0) {
-    // Fallback: If clinic_id column is missing or default, fetch intakes gracefully
     let fallbackQuery = supabaseAdmin
       .from('intakes')
       .select(`
         id,
         clinic_id,
+        doctor_id,
         raw_text,
         structured_data,
         urgency_level,
@@ -98,7 +104,7 @@ export default async function DoctorDashboardPage() {
       `)
       .order('created_at', { ascending: false });
 
-    if (clinicId && doctorProfile?.role !== 'super_admin') {
+    if (doctorProfile?.role !== 'super_admin' && clinicId) {
       fallbackQuery = fallbackQuery.or(`clinic_id.eq.${clinicId},clinic_id.is.null`);
     }
 

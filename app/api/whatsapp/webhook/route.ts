@@ -14,6 +14,18 @@ export function createTwiMLResponse(messageText: string): string {
   return twiml.toString();
 }
 
+export function normalizePhone(phone: string): string {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 10) {
+    return `+91${digits}`;
+  }
+  if (digits.length === 12 && digits.startsWith('91')) {
+    return `+${digits}`;
+  }
+  return `+${digits}`;
+}
+
 export function parseGenderInput(text: string): string {
   const norm = text.trim().toLowerCase();
   if (norm === '1' || norm === 'male' || norm === 'm' || norm === 'purush') return 'Male';
@@ -31,7 +43,8 @@ export async function POST(request: Request) {
       params[key] = value.toString();
     });
 
-    const fromPhone = (params.From || '').replace('whatsapp:', '').trim();
+    const rawFromPhone = (params.From || '').replace('whatsapp:', '').trim();
+    const fromPhone = normalizePhone(rawFromPhone);
     const bodyText = (params.Body || '').trim();
 
     if (!fromPhone) {
@@ -45,7 +58,7 @@ export async function POST(request: Request) {
     const TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes session timeout
 
     // 1. Fetch Clinics & Doctors from Supabase
-    const { data: clinics } = await supabase.from('clinics').select('id, name, code');
+    const { data: clinics } = await supabase.from('clinics').select('id, name, code, facility_type');
     const { data: doctors } = await supabase.from('doctors').select('id, name, clinic_id, department_id');
 
     const clinicList: any[] = clinics || [];
@@ -77,11 +90,11 @@ export async function POST(request: Request) {
       }
     }
 
-    // 2. Fetch Active Session for this phone number
+    // 2. Fetch Active Session for this normalized phone number
     const { data: existingSessions } = await supabase
       .from('whatsapp_sessions')
       .select('*')
-      .eq('phone', fromPhone)
+      .or(`phone.eq.${fromPhone},phone.eq.${rawFromPhone}`)
       .order('updated_at', { ascending: false });
 
     let activeSession = (existingSessions || []).find(
@@ -90,14 +103,13 @@ export async function POST(request: Request) {
         (!s.status && s.state !== 'completed' && s.state !== 'ended' && s.state !== 'expired')
     );
 
-    // 3. SESSION TIMEOUT CHECK (Rule 5): 30 Minutes inactivity
+    // 3. SESSION TIMEOUT CHECK (30 Minutes inactivity)
     if (activeSession) {
       const lastMsgTime = new Date(
         activeSession.last_message_at || activeSession.updated_at || activeSession.consented_at || 0
       ).getTime();
 
       if (nowMs - lastMsgTime > TIMEOUT_MS) {
-        // Mark old session expired
         await supabase
           .from('whatsapp_sessions')
           .update({
@@ -118,7 +130,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // 4. EXPLICIT CONTROL KEYWORDS CHECK (Rule 4) — BEFORE step checking!
+    // 4. EXPLICIT CONTROL KEYWORDS CHECK (END/RESTART)
     const normalizedBody = bodyText.toUpperCase();
 
     if (['END', 'STOP', 'CANCEL'].includes(normalizedBody)) {
@@ -187,7 +199,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // 5. MID-CONVERSATION QR CODE SWITCH CONFIRMATION (Rule 3)
+    // 5. MID-CONVERSATION QR CODE SWITCH CONFIRMATION
     if (activeSession && scannedClinic) {
       const activeClinicId = activeSession.clinic_id || activeSession.temp_clinic_id;
       const draft = activeSession.draft_data || {};
@@ -220,7 +232,6 @@ export async function POST(request: Request) {
             { headers: { 'Content-Type': 'text/xml' } }
           );
         } else {
-          // Cancel switch, continue current session
           const currentClinic = clinicList.find((c: any) => c.id === activeClinicId);
           delete draft.pending_switch_clinic_id;
           delete draft.pending_switch_doctor_id;
@@ -280,10 +291,9 @@ export async function POST(request: Request) {
       }
     }
 
-    // 6. NO ACTIVE SESSION: Create New Session (Rule 2)
+    // 6. NO ACTIVE SESSION: Create New Session
     if (!activeSession) {
       if (scannedClinic) {
-        // Create session locked to scanned clinic/doctor
         const { data: newSession } = await supabase
           .from('whatsapp_sessions')
           .insert([
@@ -313,7 +323,6 @@ export async function POST(request: Request) {
           { headers: { 'Content-Type': 'text/xml' } }
         );
       } else {
-        // General greeting + Clinic selection
         let menuMsg = `Welcome to VaidyaDrishti Tele-Triage Portal! 🏥\n\nPlease select your Consulting Hospital / Doctor:\n\n`;
         clinicList.forEach((clinic: any, idx: number) => {
           const doc = doctorList.find((d: any) => d.clinic_id === clinic.id);
@@ -341,11 +350,10 @@ export async function POST(request: Request) {
       }
     }
 
-    // 7. STEP-BASED CONVERSATION STATE MACHINE (Rule 6)
+    // 7. STEP-BASED CONVERSATION STATE MACHINE
     const currentStep = activeSession.current_step || activeSession.state || 'awaiting_name';
     const draft = activeSession.draft_data || {};
 
-    // Helper to update session step
     const updateSessionStep = async (nextStep: string, updatedDraft: any) => {
       await supabase
         .from('whatsapp_sessions')
@@ -452,13 +460,14 @@ export async function POST(request: Request) {
       draft.media_url = mediaUrl;
 
       const clinicIdVal = activeSession.clinic_id || activeSession.temp_clinic_id || clinicList[0]?.id;
+      const doctorIdVal = activeSession.doctor_id || null;
 
-      // 1. Create/Update Patient Record in Supabase
+      // 1. Create/Update Patient Record with E.164 Normalized Phone
       let patientId: string;
       const { data: existingPatient } = await supabase
         .from('patients')
         .select('id')
-        .eq('phone', fromPhone)
+        .or(`phone.eq.${fromPhone},phone.eq.${rawFromPhone}`)
         .maybeSingle();
 
       if (existingPatient) {
@@ -469,6 +478,7 @@ export async function POST(request: Request) {
             name: draft.name || 'Unknown Patient',
             age: draft.age || 30,
             sex: draft.gender || 'Male',
+            phone: fromPhone,
             clinic_id: clinicIdVal,
           })
           .eq('id', patientId);
@@ -504,13 +514,14 @@ export async function POST(request: Request) {
         patientId = newP.data!.id;
       }
 
-      // 2. Insert Intake Record in Supabase
+      // 2. Insert Intake Record with BOTH clinic_id and doctor_id
       let newIntakeRes = await supabase
         .from('intakes')
         .insert([
           {
             clinic_id: clinicIdVal,
-            department_id: activeSession.doctor_id || null,
+            doctor_id: doctorIdVal,
+            department_id: doctorIdVal,
             patient_id: patientId,
             raw_text: draft.symptoms,
             is_voice_intake: isAudio,
@@ -526,6 +537,7 @@ export async function POST(request: Request) {
           .from('intakes')
           .insert([
             {
+              clinic_id: clinicIdVal,
               patient_id: patientId,
               raw_text: draft.symptoms,
               is_voice_intake: isAudio,
@@ -556,7 +568,7 @@ export async function POST(request: Request) {
         }
       }
 
-      // 4. Complete Session (Rule 6)
+      // 4. Complete Session
       await supabase
         .from('whatsapp_sessions')
         .update({
