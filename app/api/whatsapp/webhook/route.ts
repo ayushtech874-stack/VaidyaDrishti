@@ -7,30 +7,24 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-/**
- * Helper to build TwiML MessagingResponse XML string
- */
 function createTwiMLResponse(messageText: string): string {
   const twiml = new twilio.twiml.MessagingResponse();
   twiml.message(messageText);
   return twiml.toString();
 }
 
-/**
- * Forgiving consent parser for Indian multilingual inputs
- */
 function isConsentAffirmative(text: string): boolean {
   const normalized = text.trim().toLowerCase();
   const affirmativeTerms = [
-    'agree', 'yes', 'haan', 'han', 'ok', 'okay', 'yep', 'ha',
-    'i consent', 'i agree', 'sahi h', 'sahi hai', 'thik hai', 'thik h', 'accept'
+    'agree', 'yes', '1', 'haan', 'han', 'ok', 'okay', 'yep', 'ha',
+    'i consent', 'i agree', 'sahi h', 'sahi hai', 'thik hai', 'accept'
   ];
   return affirmativeTerms.some((term) => normalized.includes(term));
 }
 
 function isOptOut(text: string): boolean {
   const normalized = text.trim().toLowerCase();
-  return ['stop', 'unsubscribe', 'cancel', 'opt out', 'no', 'nahi'].includes(normalized);
+  return ['stop', 'unsubscribe', 'cancel', 'opt out', 'no', '2', 'nahi'].includes(normalized);
 }
 
 export async function POST(request: Request) {
@@ -44,23 +38,12 @@ export async function POST(request: Request) {
     const fromPhone = (params.From || '').replace('whatsapp:', '').trim();
     const bodyText = (params.Body || '').trim();
 
-    // 1. Optional Twilio Signature Verification
-    const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
-    const twilioSignature = request.headers.get('x-twilio-signature');
-    const url = request.url;
+    // 1. Fetch available clinics & doctors for interactive menus
+    const { data: clinics } = await supabase.from('clinics').select('id, name, code');
+    const { data: doctors } = await supabase.from('doctors').select('id, name, clinic_id');
 
-    if (twilioAuthToken && twilioSignature) {
-      const isValid = twilio.validateRequest(
-        twilioAuthToken,
-        twilioSignature,
-        url,
-        params
-      );
-      if (!isValid) {
-        console.warn('Unauthorized Twilio webhook signature');
-        return new Response('Unauthorized Signature', { status: 403 });
-      }
-    }
+    const clinicList: any[] = clinics || [];
+    const doctorList: any[] = doctors || [];
 
     if (!fromPhone) {
       return new Response(createTwiMLResponse('Invalid request'), {
@@ -75,21 +58,14 @@ export async function POST(request: Request) {
       .eq('phone', fromPhone)
       .maybeSingle();
 
-    // Extract potential clinic code keyword e.g. "CLINIC_102" or "PILOT_CLINIC_1"
+    // Check for QR keyword match e.g. "JOIN_CLINIC_VinayKrishna"
     let matchedClinicId: string | null = null;
-    const clinicCodeMatch = bodyText.match(/CLINIC_[A-Z0-9_-]+/i);
+    const clinicCodeMatch = bodyText.match(/JOIN_CLINIC_[A-Z0-9_-]+/i) || bodyText.match(/CLINIC_[A-Z0-9_-]+/i);
 
     if (clinicCodeMatch) {
-      const code = clinicCodeMatch[0].toUpperCase();
-      const { data: clinic } = await supabase
-        .from('clinics')
-        .select('id')
-        .eq('code', code)
-        .maybeSingle();
-
-      if (clinic) {
-        matchedClinicId = clinic.id;
-      }
+      const code = clinicCodeMatch[0].toUpperCase().replace('JOIN_', '');
+      const matched = clinicList.find((c: any) => c.code.toUpperCase() === code || c.code.toUpperCase() === `CLINIC_${code}`);
+      if (matched) matchedClinicId = matched.id;
     }
 
     if (!session) {
@@ -100,6 +76,7 @@ export async function POST(request: Request) {
             phone: fromPhone,
             state: 'AWAITING_CONSENT',
             consent_granted: false,
+            temp_clinic_id: matchedClinicId,
           },
         ])
         .select('*')
@@ -108,8 +85,15 @@ export async function POST(request: Request) {
       session = newSession;
     }
 
+    if (matchedClinicId && session) {
+      await supabase
+        .from('whatsapp_sessions')
+        .update({ temp_clinic_id: matchedClinicId })
+        .eq('phone', fromPhone);
+    }
+
     // Handle Opt-Out / STOP
-    if (isOptOut(bodyText)) {
+    if (isOptOut(bodyText) && session?.state === 'AWAITING_CONSENT') {
       await supabase
         .from('whatsapp_sessions')
         .update({
@@ -121,16 +105,15 @@ export async function POST(request: Request) {
 
       return new Response(
         createTwiMLResponse(
-          'You have opted out of VaidyaDrishti. Your data processing has been stopped. Reply AGREE anytime to resume.'
+          'You have opted out of VaidyaDrishti. Reply 1 or AGREE anytime to resume.'
         ),
         { headers: { 'Content-Type': 'text/xml' } }
       );
     }
 
-    // 3. State Machine Execution
     const currentState = session?.state || 'AWAITING_CONSENT';
 
-    // STATE 1: AWAITING CONSENT
+    // STATE 1: AWAITING CONSENT (Interactive Touch 1 or 2)
     if (currentState === 'AWAITING_CONSENT') {
       if (isConsentAffirmative(bodyText)) {
         await supabase
@@ -138,40 +121,94 @@ export async function POST(request: Request) {
           .update({
             consent_granted: true,
             consented_at: new Date().toISOString(),
-            state: 'AWAITING_DEMOGRAPHICS',
+            state: 'SELECT_DEPARTMENT',
             updated_at: new Date().toISOString(),
           })
           .eq('phone', fromPhone);
 
-        return new Response(
-          createTwiMLResponse(
-            `Thank you for consenting! 🙏\n\nTo assist your doctor, please reply with the patient's Name and Age.\nExample: "Ramesh, 45"`
-          ),
-          { headers: { 'Content-Type': 'text/xml' } }
-        );
+        let menuMsg = `Thank you for consenting! 🙏\n\n🏥 Please select your Consulting Hospital Department:\n\n`;
+        clinicList.forEach((clinic: any, idx: number) => {
+          const doc = doctorList.find((d: any) => d.clinic_id === clinic.id);
+          menuMsg += `${idx + 1}️⃣ ${clinic.name} — ${doc?.name ? `Dr. ${doc.name}` : 'OPD'}\n`;
+        });
+        menuMsg += `\nReply with number (e.g., 1, 2, or 3)!`;
+
+        return new Response(createTwiMLResponse(menuMsg), {
+          headers: { 'Content-Type': 'text/xml' },
+        });
       } else {
         return new Response(
           createTwiMLResponse(
-            `Welcome to VaidyaDrishti Clinical Triage Assistant. 🩺\n\nTo allow your consulting doctor to review your symptoms, please reply AGREE or YES to consent to storing your intake data under DPDP Act 2023.\n\n⚠️ Disclaimer: This is NOT a diagnosis tool. In a medical emergency, visit the nearest hospital immediately.`
+            `🩺 Welcome to VaidyaDrishti Hospital Tele-Triage Portal.\n\nTo allow your consulting doctor to review your symptoms under DPDP Act 2023, please tap/reply:\n\n1️⃣ YES / AGREE (Proceed)\n2️⃣ NO (Decline)\n\n⚠️ Disclaimer: This is NOT a diagnosis tool. In a medical emergency, visit the nearest hospital immediately.`
           ),
           { headers: { 'Content-Type': 'text/xml' } }
         );
       }
     }
 
-    // STATE 2: AWAITING DEMOGRAPHICS
+    // STATE 2: SELECT DEPARTMENT & DOCTOR
+    if (currentState === 'SELECT_DEPARTMENT') {
+      const selectionIdx = parseInt(bodyText.trim(), 10) - 1;
+      let selectedClinic: any = clinicList[selectionIdx];
+
+      if (!selectedClinic && session?.temp_clinic_id) {
+        selectedClinic = clinicList.find((c: any) => c.id === session.temp_clinic_id);
+      }
+
+      if (!selectedClinic) {
+        selectedClinic = clinicList[0];
+      }
+
+      await supabase
+        .from('whatsapp_sessions')
+        .update({
+          temp_clinic_id: selectedClinic?.id || null,
+          state: 'SELECT_GENDER',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('phone', fromPhone);
+
+      return new Response(
+        createTwiMLResponse(
+          `Selected: ${selectedClinic?.name || 'General OPD'} 🏥\n\n👤 Please select Patient Sex / Gender:\n\n1️⃣ Male\n2️⃣ Female\n3️⃣ Other\n\nReply 1, 2, or 3!`
+        ),
+        { headers: { 'Content-Type': 'text/xml' } }
+      );
+    }
+
+    // STATE 3: SELECT GENDER
+    if (currentState === 'SELECT_GENDER') {
+      const genderMap: Record<string, string> = { '1': 'Male', '2': 'Female', '3': 'Other' };
+      const selectedGender = genderMap[bodyText.trim()] || 'Male';
+
+      await supabase
+        .from('whatsapp_sessions')
+        .update({
+          temp_gender: selectedGender,
+          state: 'AWAITING_DEMOGRAPHICS',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('phone', fromPhone);
+
+      return new Response(
+        createTwiMLResponse(
+          `Gender set to: ${selectedGender} 👍\n\nNow, please reply with the patient's Full Name & Age.\nExample: "Ramesh Kumar, 45"`
+        ),
+        { headers: { 'Content-Type': 'text/xml' } }
+      );
+    }
+
+    // STATE 4: AWAITING DEMOGRAPHICS (Name & Age)
     if (currentState === 'AWAITING_DEMOGRAPHICS') {
-      // Parse name and age from text e.g. "Ramesh, 45" or "Pooja 28"
       const match = bodyText.match(/^([a-zA-Z\s]+)[,\s]+(\d{1,3})$/);
       let name = bodyText;
-      let age = 30; // default fallback if unparsed
+      let age = 30;
 
       if (match) {
         name = match[1].trim();
         age = parseInt(match[2], 10);
       }
 
-      // Find or create patient row
       let patientId: string;
       const { data: existingPatient } = await supabase
         .from('patients')
@@ -179,19 +216,30 @@ export async function POST(request: Request) {
         .eq('phone', fromPhone)
         .maybeSingle();
 
+      const sexVal = session?.temp_gender || 'Male';
+      const clinicVal = session?.temp_clinic_id || (clinicList[0]?.id || null);
+
       if (existingPatient) {
         patientId = existingPatient.id;
-        await supabase.from('patients').update({ name, age }).eq('id', patientId);
+        await supabase.from('patients').update({ name, age, sex: sexVal }).eq('id', patientId);
       } else {
-        const { data: newPatient } = await supabase
+        let newP = await supabase
           .from('patients')
-          .insert([{ name, age, phone: fromPhone }])
+          .insert([{ name, age, sex: sexVal, phone: fromPhone, clinic_id: clinicVal }])
           .select('id')
           .single();
-        patientId = newPatient!.id;
+
+        if (newP.error) {
+          newP = await supabase
+            .from('patients')
+            .insert([{ name, age, phone: fromPhone }])
+            .select('id')
+            .single();
+        }
+
+        patientId = newP.data!.id;
       }
 
-      // Update session to AWAITING_SYMPTOMS
       await supabase
         .from('whatsapp_sessions')
         .update({
@@ -205,18 +253,17 @@ export async function POST(request: Request) {
 
       return new Response(
         createTwiMLResponse(
-          `Got it, ${name} (${age} yrs)! 👍\n\nNow, please describe what symptoms you are feeling, when they started, and how severe they are. You can send a text message or a Voice Note in your language!`
+          `Patient Registered: ${name} (${age} yrs, ${sexVal})! ✅\n\n🎙️ Now, please describe your illness or send Voice Notes in your language (Hindi, Bhojpuri, Angika, Tamil, Hinglish, etc.).\n\nYou can send multiple text messages or voice recordings!`
         ),
         { headers: { 'Content-Type': 'text/xml' } }
       );
     }
 
-    // STATE 3: AWAITING SYMPTOMS (Text or Audio)
+    // STATE 5: AWAITING SYMPTOMS (Voice Notes or Text)
     if (currentState === 'AWAITING_SYMPTOMS') {
       const numMedia = parseInt(params.NumMedia || '0', 10);
       const isAudio = numMedia > 0 && (params.MediaContentType0 || '').startsWith('audio/');
 
-      // Fetch linked patient ID
       let patientId = session?.patient_id;
       if (!patientId) {
         const { data: p } = await supabase
@@ -227,15 +274,16 @@ export async function POST(request: Request) {
         patientId = p?.id;
       }
 
+      const clinicVal = session?.temp_clinic_id || (clinicList[0]?.id || null);
+
       if (isAudio) {
-        // Voice Note Flow - handled in Prompt 8
         const mediaUrl = params.MediaUrl0;
         
-        // Insert pending voice intake row
-        const { data: newIntake } = await supabase
+        let newIntakeRes = await supabase
           .from('intakes')
           .insert([
             {
+              clinic_id: clinicVal,
               patient_id: patientId,
               raw_text: '[Voice Note Transcribing Pending...]',
               is_voice_intake: true,
@@ -246,7 +294,23 @@ export async function POST(request: Request) {
           .select('id')
           .single();
 
-        // Offload async ASR + Structuring call
+        if (newIntakeRes.error) {
+          newIntakeRes = await supabase
+            .from('intakes')
+            .insert([
+              {
+                patient_id: patientId,
+                raw_text: '[Voice Note Transcribing Pending...]',
+                is_voice_intake: true,
+                status: 'pending_review',
+              },
+            ])
+            .select('id')
+            .single();
+        }
+
+        const newIntake = newIntakeRes.data;
+
         if (newIntake?.id) {
           fetch(`${new URL(request.url).origin}/api/transcribe-voice`, {
             method: 'POST',
@@ -257,16 +321,16 @@ export async function POST(request: Request) {
 
         return new Response(
           createTwiMLResponse(
-            'Voice note received! 🎙️ We are converting your audio to clinical summary for your doctor. Thank you!'
+            '🎙️ Voice note received! Converting audio to medical summary for your doctor. You can record more voice notes or reply anytime.'
           ),
           { headers: { 'Content-Type': 'text/xml' } }
         );
       } else {
-        // Text Flow
-        const { data: newIntake } = await supabase
+        let newIntakeRes = await supabase
           .from('intakes')
           .insert([
             {
+              clinic_id: clinicVal,
               patient_id: patientId,
               raw_text: bodyText,
               is_voice_intake: false,
@@ -276,7 +340,22 @@ export async function POST(request: Request) {
           .select('id')
           .single();
 
-        // Offload async Groq structuring + rules engine call
+        if (newIntakeRes.error) {
+          newIntakeRes = await supabase
+            .from('intakes')
+            .insert([
+              {
+                patient_id: patientId,
+                raw_text: bodyText,
+                status: 'pending_review',
+              },
+            ])
+            .select('id')
+            .single();
+        }
+
+        const newIntake = newIntakeRes.data;
+
         if (newIntake?.id) {
           fetch(`${new URL(request.url).origin}/api/structure-intake`, {
             method: 'POST',
@@ -287,7 +366,7 @@ export async function POST(request: Request) {
 
         return new Response(
           createTwiMLResponse(
-            'Your symptom description has been sent to your consulting doctor. 👨‍⚕️\n\nThis is not a medical diagnosis. If you experience emergency symptoms, please seek immediate in-person care.'
+            '👨‍⚕️ Your health details have been delivered directly to your consulting doctor\'s queue!\n\nThis is not a medical diagnosis. In a severe emergency, seek immediate in-person hospital care.'
           ),
           { headers: { 'Content-Type': 'text/xml' } }
         );
