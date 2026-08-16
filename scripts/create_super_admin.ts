@@ -18,10 +18,11 @@ async function createSuperAdmin(email: string, pass: string, name: string) {
     password: pass,
     email_confirm: true,
     user_metadata: { name: name.trim(), role: 'super_admin' },
+    app_metadata: { role: 'super_admin' },
   });
 
   if (authErr) {
-    console.log('User exists in Auth, updating existing user password & role...');
+    console.log('User exists in Auth, updating existing user password, user_metadata & app_metadata...');
     const { data: users } = await supabase.auth.admin.listUsers();
     const existing = users.users.find((u) => u.email === email.trim());
     if (existing) {
@@ -29,6 +30,7 @@ async function createSuperAdmin(email: string, pass: string, name: string) {
       await supabase.auth.admin.updateUserById(userId, {
         password: pass,
         user_metadata: { name: name.trim(), role: 'super_admin' },
+        app_metadata: { role: 'super_admin' },
       });
     } else {
       throw authErr;
@@ -37,29 +39,11 @@ async function createSuperAdmin(email: string, pass: string, name: string) {
     userId = authData.user.id;
   }
 
-  // 2. Upsert Super-Admin Doctor Profile in doctors table
-  const { data: docData, error: docErr } = await supabase.from('doctors').upsert([
-    {
-      id: userId,
-      name: name.trim(),
-      email: email.trim(),
-      rmp_registration_number: 'SUPER-ADMIN-DIRECTOR',
-      qualifications: 'VaidyaDrishti Chief Administrator',
-      role: 'super_admin',
-    },
-  ]);
-
-  if (docErr) {
-    console.error('Error updating doctors table:', docErr);
-  } else {
-    console.log('✅ Super-Admin profile updated successfully in database!');
-  }
-
-  console.log(`\n🎉 SUPER-ADMIN CREATED SUCCESSFULLY!`);
+  console.log(`\n🎉 SUPER-ADMIN CREATED & PROMOTED SUCCESSFULLY!`);
   console.log(`-----------------------------------`);
   console.log(`Email: ${email}`);
   console.log(`Password: ${pass}`);
-  console.log(`Role: super_admin`);
+  console.log(`Role: super_admin (user_metadata & app_metadata)`);
   console.log(`Login URL: https://vaidya-drishti.vercel.app/doctor/login\n`);
 }
 

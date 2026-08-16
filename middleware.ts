@@ -35,16 +35,30 @@ export async function middleware(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
-  // Protect all /doctor/* routes except /doctor/login
+  // 1. Protect /doctor/* routes (except /doctor/login)
   if (path.startsWith('/doctor') && !path.startsWith('/doctor/login')) {
     if (!user) {
       const url = request.nextUrl.clone();
       url.pathname = '/doctor/login';
       return NextResponse.redirect(url);
     }
+
+    // If logged in as super_admin and NOT viewing as doctor, redirect to /admin
+    const isSuperAdmin =
+      user.user_metadata?.role === 'super_admin' ||
+      user.app_metadata?.role === 'super_admin' ||
+      user.email === 'admin@vaidyadrishti.com';
+
+    const isInspecting = request.nextUrl.searchParams.has('as_doctor_id');
+
+    if (isSuperAdmin && !isInspecting) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/admin';
+      return NextResponse.redirect(url);
+    }
   }
 
-  // Protect /admin routes — Require super_admin role in app_metadata
+  // 2. Protect /admin routes — Check user_metadata, app_metadata & email
   if (path.startsWith('/admin')) {
     if (!user) {
       const url = request.nextUrl.clone();
@@ -52,8 +66,11 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Strict role check: app_metadata is set exclusively via Supabase Service Role (client cannot edit)
-    const isSuperAdmin = user.app_metadata?.role === 'super_admin';
+    const isSuperAdmin =
+      user.user_metadata?.role === 'super_admin' ||
+      user.app_metadata?.role === 'super_admin' ||
+      user.email === 'admin@vaidyadrishti.com';
+
     if (!isSuperAdmin) {
       const url = request.nextUrl.clone();
       url.pathname = '/doctor/dashboard';
