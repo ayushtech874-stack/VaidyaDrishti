@@ -9,6 +9,7 @@ interface DashboardClientViewProps {
   doctorDisplayName: string;
   doctorRmpNo: string;
   clinicDisplayName: string;
+  mustChangePassword?: boolean;
 }
 
 function formatTimeAgo(dateString: string): string {
@@ -90,6 +91,45 @@ function DashboardContent({
   const [activeTab, setActiveTab] = useState<'pending' | 'in_progress' | 'history'>(initialTab);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
+  // Force Password Reset state
+  const [showPasswordResetModal, setShowPasswordResetModal] = useState<boolean>(Boolean(initialIntakes && (initialIntakes as any).mustChangePassword));
+  const [newPasswordVal, setNewPasswordVal] = useState('');
+  const [confirmPasswordVal, setConfirmPasswordVal] = useState('');
+  const [passwordResetError, setPasswordResetError] = useState('');
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+
+  async function handleForcePasswordChange(e: React.FormEvent) {
+    e.preventDefault();
+    if (newPasswordVal.length < 8) {
+      setPasswordResetError('Password must be at least 8 characters long.');
+      return;
+    }
+    if (newPasswordVal !== confirmPasswordVal) {
+      setPasswordResetError('Passwords do not match.');
+      return;
+    }
+
+    setIsResettingPassword(true);
+    setPasswordResetError('');
+
+    try {
+      const res = await fetch('/api/doctor/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_password: newPasswordVal }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update password');
+
+      setShowPasswordResetModal(false);
+    } catch (err: any) {
+      setPasswordResetError(err.message || 'Error changing password.');
+    } finally {
+      setIsResettingPassword(false);
+    }
+  }
 
   // Sync initial intakes prop
   useEffect(() => {
@@ -225,6 +265,68 @@ function DashboardContent({
 
   return (
     <div className="space-y-6">
+      {/* Mandatory Password Change Modal for Temporary Credentials */}
+      {showPasswordResetModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-amber-300 space-y-4">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 bg-amber-100 text-amber-800 rounded-full flex items-center justify-center text-2xl mx-auto font-bold">
+                🔐
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">
+                Action Required: Set New Password
+              </h3>
+              <p className="text-xs text-slate-600">
+                You logged in with a temporary admin-generated password. Please create your private secure password to access your patient queue.
+              </p>
+            </div>
+
+            {passwordResetError && (
+              <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-xl text-xs font-semibold">
+                {passwordResetError}
+              </div>
+            )}
+
+            <form onSubmit={handleForcePasswordChange} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  New Private Password (min 8 chars) *
+                </label>
+                <input
+                  type="password"
+                  value={newPasswordVal}
+                  onChange={(e) => setNewPasswordVal(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  required
+                  minLength={8}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Confirm New Password *
+                </label>
+                <input
+                  type="password"
+                  value={confirmPasswordVal}
+                  onChange={(e) => setConfirmPasswordVal(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  required
+                  minLength={8}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isResettingPassword}
+                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-sm py-3 rounded-xl shadow transition"
+              >
+                {isResettingPassword ? 'Updating Password...' : 'Save New Password & Enter Queue →'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
       {/* Instant 0ms Tab Navigation Bar */}
       <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-3">
         <button

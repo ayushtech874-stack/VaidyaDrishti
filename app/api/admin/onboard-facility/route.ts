@@ -34,7 +34,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // Allow dev environment or super admin
     if (!user && process.env.NODE_ENV === 'production') {
       return NextResponse.json({ error: 'Unauthorized. Super-Admin authentication required.' }, { status: 401 });
     }
@@ -61,17 +60,16 @@ export async function POST(request: Request) {
     const isVerifiedVal = Boolean(auto_verify);
     const isLiveVal = Boolean(auto_verify);
 
-    // 2. Create Supabase Auth Account for Doctor
+    // 2. Create Supabase Auth Account with must_change_password flag
     const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
       email: doctor_email.trim(),
       password: tempPassword,
       email_confirm: true,
-      user_metadata: { name: doctor_name.trim(), role: 'doctor' },
+      user_metadata: { name: doctor_name.trim(), role: 'doctor', must_change_password: true },
     });
 
     let doctorUserId = authData?.user?.id;
     if (authErr) {
-      // If user already exists, fetch existing user ID
       const { data: users } = await supabaseAdmin.auth.admin.listUsers();
       const existingUser = users.users.find((u) => u.email === doctor_email.trim());
       if (existingUser) {
@@ -132,7 +130,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // 5. Create Doctor Profile in doctors table
+    // 5. Create Doctor Profile with must_change_password = true
     if (doctorUserId) {
       await supabaseAdmin.from('doctors').upsert([
         {
@@ -146,6 +144,7 @@ export async function POST(request: Request) {
           role: 'doctor',
           is_verified: isVerifiedVal,
           is_live: isLiveVal,
+          must_change_password: true,
         },
       ]);
     }
@@ -156,6 +155,7 @@ export async function POST(request: Request) {
       credentials: {
         email: doctor_email.trim(),
         temp_password: tempPassword,
+        must_change_password: true,
       },
       clinic_id: clinicId,
       facility_code: facility_code.trim().toUpperCase(),

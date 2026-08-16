@@ -152,6 +152,7 @@ export default async function DoctorDashboardPage() {
         doctorDisplayName={doctorDisplayName}
         doctorRmpNo={doctorRmpNo}
         clinicDisplayName={clinicDisplayName}
+        mustChangePassword={Boolean(doctorProfile?.must_change_password)}
       />
     </div>
   );
