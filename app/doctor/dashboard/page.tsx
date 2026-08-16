@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 import KillSwitchButton from './KillSwitchButton';
@@ -24,12 +25,18 @@ export default async function DoctorDashboardPage() {
   if (user) {
     const { data: docData } = await supabaseAdmin
       .from('doctors')
-      .select('id, name, email, rmp_registration_number, clinic_id, department_id, role')
+      .select('id, name, email, rmp_registration_number, clinic_id, department_id, role, must_change_password')
       .eq('id', user.id)
       .single();
 
     if (docData) {
       doctorProfile = docData;
+
+      // 1. CRITICAL REDIRECT: If logged in as Super-Admin, automatically redirect to /admin Command Portal!
+      if (docData.role === 'super_admin') {
+        redirect('/admin');
+      }
+
       if (docData.clinic_id) {
         const { data: clinicData } = await supabaseAdmin
           .from('clinics')
@@ -47,7 +54,7 @@ export default async function DoctorDashboardPage() {
   const clinicId = doctorProfile?.clinic_id;
   const doctorId = doctorProfile?.id;
 
-  // STRICT SINGLE-DOCTOR QUEUE FILTERING (0 Null Fallback Leakage)
+  // STRICT SINGLE-DOCTOR QUEUE FILTERING
   let query = supabaseAdmin
     .from('intakes')
     .select(`
@@ -70,13 +77,10 @@ export default async function DoctorDashboardPage() {
     `)
     .order('created_at', { ascending: false });
 
-  if (doctorProfile?.role !== 'super_admin') {
-    if (doctorId) {
-      // STRICT FILTER BY DOCTOR_ID ONLY — No NULL fallback clause!
-      query = query.eq('doctor_id', doctorId);
-    } else if (clinicId) {
-      query = query.eq('clinic_id', clinicId);
-    }
+  if (doctorId) {
+    query = query.eq('doctor_id', doctorId);
+  } else if (clinicId) {
+    query = query.eq('clinic_id', clinicId);
   }
 
   let allIntakes: any[] = [];
@@ -104,9 +108,9 @@ export default async function DoctorDashboardPage() {
       `)
       .order('created_at', { ascending: false });
 
-    if (doctorProfile?.role !== 'super_admin' && doctorId) {
+    if (doctorId) {
       fallbackQuery = fallbackQuery.eq('doctor_id', doctorId);
-    } else if (doctorProfile?.role !== 'super_admin' && clinicId) {
+    } else if (clinicId) {
       fallbackQuery = fallbackQuery.eq('clinic_id', clinicId);
     }
 
