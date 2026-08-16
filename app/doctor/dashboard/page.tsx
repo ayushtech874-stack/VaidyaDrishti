@@ -37,7 +37,7 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
       user.app_metadata?.role === 'super_admin' ||
       userEmailNorm === 'admin@vaidyadrishti.com';
 
-    // 1. Resilient Dual Lookup: Search doctor profile by ID OR by Email (EXCLUDING optional columns)
+    // 1. Resilient Dual Lookup: Search doctor profile by ID OR by Email
     const { data: docData } = await supabaseAdmin
       .from('doctors')
       .select('id, name, email, rmp_registration_number, clinic_id, department_id, role')
@@ -75,16 +75,6 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
     } else if (docData) {
       doctorProfile = docData;
 
-      // Auto-heal ID mismatch if Auth ID differs from doctors table ID
-      if (docData.id !== user.id) {
-        try {
-          await supabaseAdmin.from('doctors').update({ id: user.id }).eq('id', docData.id);
-          doctorProfile.id = user.id;
-        } catch (e) {
-          console.warn('ID auto-heal notice:', e);
-        }
-      }
-
       if (docData.clinic_id) {
         const { data: clinicData } = await supabaseAdmin
           .from('clinics')
@@ -99,86 +89,43 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
   const doctorDisplayName = doctorProfile?.name || user?.email || 'On-Duty RMP Doctor';
   const doctorRmpNo = doctorProfile?.rmp_registration_number || 'VERIFIED-RMP';
 
-  // Fix Placeholder Text Interpolation: Exact clinic name or honest explicit message
   const clinicDisplayName = clinicProfile?.name
     ? `Clinic Queue: ${clinicProfile.name}`
     : 'No clinic assigned to this account';
 
   const clinicId = doctorProfile?.clinic_id;
-  const doctorId = doctorProfile?.id;
 
-  const isUnlinkedAccount = !clinicId && !doctorId;
+  const isUnlinkedAccount = !clinicId;
 
-  // 2. BULLETPROOF QUEUE QUERY: Matches direct doctor_id OR clinic_id unassigned intakes!
-  let query = supabaseAdmin
-    .from('intakes')
-    .select(`
-      id,
-      clinic_id,
-      doctor_id,
-      raw_text,
-      structured_data,
-      urgency_level,
-      red_flags,
-      status,
-      queue_position,
-      created_at,
-      patients (
-        id,
-        name,
-        age,
-        phone
-      )
-    `)
-    .order('created_at', { ascending: false });
-
-  if (doctorId && clinicId) {
-    query = query.or(`doctor_id.eq.${doctorId},clinic_id.eq.${clinicId}`);
-  } else if (doctorId) {
-    query = query.eq('doctor_id', doctorId);
-  } else if (clinicId) {
-    query = query.eq('clinic_id', clinicId);
-  }
-
+  // 2. BULLETPROOF QUEUE QUERY: Queries intakes by clinic_id (using valid DB schema columns)
   let allIntakes: any[] = [];
 
-  if (!isUnlinkedAccount) {
-    const { data: primaryData, error } = await query;
-
-    if (error || !primaryData || primaryData.length === 0) {
-      let fallbackQuery = supabaseAdmin
-        .from('intakes')
-        .select(`
+  if (!isUnlinkedAccount && clinicId) {
+    const { data: primaryData, error: primaryErr } = await supabaseAdmin
+      .from('intakes')
+      .select(`
+        id,
+        clinic_id,
+        raw_text,
+        structured_data,
+        urgency_level,
+        red_flags,
+        status,
+        created_at,
+        patients (
           id,
-          clinic_id,
-          doctor_id,
-          raw_text,
-          structured_data,
-          urgency_level,
-          red_flags,
-          status,
-          created_at,
-          patients (
-            id,
-            name,
-            age,
-            phone
-          )
-        `)
-        .order('created_at', { ascending: false });
+          name,
+          age,
+          phone
+        )
+      `)
+      .eq('clinic_id', clinicId)
+      .order('created_at', { ascending: false });
 
-      if (doctorId && clinicId) {
-        fallbackQuery = fallbackQuery.or(`doctor_id.eq.${doctorId},clinic_id.eq.${clinicId}`);
-      } else if (doctorId) {
-        fallbackQuery = fallbackQuery.eq('doctor_id', doctorId);
-      } else if (clinicId) {
-        fallbackQuery = fallbackQuery.eq('clinic_id', clinicId);
-      }
-
-      const { data: fallbackData } = await fallbackQuery;
-      allIntakes = (fallbackData || []) as any[];
+    if (primaryErr) {
+      console.error('Doctor Dashboard Intakes Query Error:', primaryErr);
     } else {
-      allIntakes = primaryData as any[];
+      allIntakes = (primaryData || []) as any[];
     }
   }
 
@@ -234,7 +181,7 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
         doctorDisplayName={doctorDisplayName}
         doctorRmpNo={doctorRmpNo}
         clinicDisplayName={clinicDisplayName}
-        mustChangePassword={Boolean(doctorProfile?.must_change_password)}
+        mustChangePassword={false}
         isUnlinkedAccount={isUnlinkedAccount}
       />
     </div>
