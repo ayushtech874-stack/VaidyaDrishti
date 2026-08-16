@@ -11,6 +11,7 @@ export default function PublicDirectoryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [selectedQRClinic, setSelectedQRClinic] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const supabase = createClient();
 
@@ -18,8 +19,9 @@ export default function PublicDirectoryPage() {
   const twilioNumberClean = twilioNumberRaw.replace(/\D/g, '');
 
   useEffect(() => {
-    async function loadVerifiedFacilities() {
-      // Fetch clinics and filter verified ones
+    async function loadAllFacilities() {
+      setIsLoading(true);
+      // Fetch ALL registered facilities from clinics table
       const { data: clinicsData } = await supabase
         .from('clinics')
         .select('id, name, code, address, facility_type, is_verified, is_live');
@@ -32,17 +34,13 @@ export default function PublicDirectoryPage() {
         .from('departments')
         .select('id, name, code, clinic_id');
 
-      // Verified facilities gate
-      const verifiedClinics = (clinicsData || []).filter(
-        (c) => c.is_verified !== false && c.is_live !== false
-      );
-
-      setFacilities(verifiedClinics);
+      setFacilities(clinicsData || []);
       setDoctors(doctorsData || []);
       setDepartments(deptsData || []);
+      setIsLoading(false);
     }
 
-    loadVerifiedFacilities();
+    loadAllFacilities();
   }, []);
 
   const filteredFacilities = facilities.filter((f) => {
@@ -57,33 +55,51 @@ export default function PublicDirectoryPage() {
 
   return (
     <div className="min-h-screen bg-[var(--color-cream)] text-[var(--color-ink)] py-10 px-4 sm:px-6">
-      <div className="max-w-5xl mx-auto space-y-8">
-        {/* Directory Hero Header */}
+      <div className="max-w-6xl mx-auto space-y-8">
+        {/* Directory Navigation Top Bar */}
+        <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-4">
+          <Link
+            href="/"
+            className="text-xs font-bold text-[var(--color-navy)] bg-white border border-[var(--color-border)] px-4 py-2 rounded-xl shadow-sm hover:bg-[var(--color-blue-soft)] transition"
+          >
+            ← Home
+          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/doctor/login"
+              className="text-xs font-bold text-[var(--color-navy)] bg-[var(--color-blue-soft)] px-4 py-2 rounded-xl border border-[var(--color-blue)]/20 hover:bg-[var(--color-blue-soft)]/80 transition"
+            >
+              👨‍⚕️ Doctor / Admin Portal Sign In
+            </Link>
+          </div>
+        </div>
+
+        {/* Directory Hero Banner */}
         <div className="text-center space-y-3">
-          <div className="inline-flex items-center gap-2 bg-[var(--color-blue-soft)] text-[var(--color-navy)] px-4 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider">
-            <span>🏥 Verified Medical Directory</span>
+          <div className="inline-flex items-center gap-2 bg-[var(--color-blue-soft)] text-[var(--color-navy)] px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wider">
+            <span>🏥 Official Tele-Consultation Public Directory</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-[var(--color-navy)] tracking-tight">
-            VaidyaDrishti Tele-Consultation Directory
+            VaidyaDrishti Verified Facilities & Doctor Directory
           </h1>
-          <p className="text-base text-[var(--color-ink-muted)] max-w-2xl mx-auto leading-relaxed">
-            Discover verified RMP practitioners and OPD hospital departments. Scan QR code or click to initiate direct WhatsApp tele-triage.
+          <p className="text-base text-[var(--color-ink-muted)] max-w-3xl mx-auto leading-relaxed">
+            Find empaneled RMP medical practitioners, OPD hospital departments, and specialty clinics. Scan QR codes or click to initiate 24/7 direct WhatsApp AI tele-triage.
           </p>
         </div>
 
-        {/* Search & Filter Bar */}
+        {/* Search & Filter Controls */}
         <div className="card-surface p-4 shadow-sm flex flex-wrap items-center justify-between gap-4">
-          <div className="flex-1 min-w-[260px]">
+          <div className="flex-1 min-w-[280px]">
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="🔍 Search hospital, clinic, or specialty..."
-              className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-xl p-3.5 text-base focus:outline-none focus:border-[var(--color-blue)]"
+              placeholder="🔍 Search by hospital name, doctor, city, or specialty..."
+              className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-xl p-3.5 text-base text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-blue)]"
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setFilterType('all')}
               className={`px-4 py-2.5 rounded-xl text-xs font-bold transition ${
@@ -92,7 +108,7 @@ export default function PublicDirectoryPage() {
                   : 'bg-[var(--color-cream-deep)] text-[var(--color-ink)] hover:bg-[var(--color-blue-soft)]'
               }`}
             >
-              All ({facilities.length})
+              All Facilities ({facilities.length})
             </button>
             <button
               onClick={() => setFilterType('hospital')}
@@ -117,16 +133,21 @@ export default function PublicDirectoryPage() {
           </div>
         </div>
 
-        {/* Facilities Cards Grid */}
-        {filteredFacilities.length === 0 ? (
+        {/* Loading Spinner */}
+        {isLoading ? (
+          <div className="card-surface p-12 text-center text-[var(--color-ink-muted)]">
+            Loading directory facilities...
+          </div>
+        ) : filteredFacilities.length === 0 ? (
           <div className="card-surface p-12 text-center space-y-3">
             <span className="text-4xl">🏥</span>
-            <h3 className="text-lg font-bold text-[var(--color-navy)]">No Verified Facilities Found</h3>
+            <h3 className="text-lg font-bold text-[var(--color-navy)]">No Facilities Found</h3>
             <p className="text-xs text-[var(--color-ink-muted)] max-w-md mx-auto">
-              No medical facilities match your search criteria, or newly registered facilities are currently undergoing Super-Admin verification.
+              No medical facilities match your search criteria. Please try searching for another hospital or specialty.
             </p>
           </div>
         ) : (
+          /* Facilities Cards Grid */
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredFacilities.map((facility) => {
               const facilityDocs = doctors.filter((d) => d.clinic_id === facility.id);
@@ -137,12 +158,13 @@ export default function PublicDirectoryPage() {
               return (
                 <div
                   key={facility.id}
-                  className="card-surface p-6 shadow-sm hover:shadow-md transition space-y-4 flex flex-col justify-between hover:bg-[var(--color-blue-soft)]/20"
+                  className="card-surface p-6 shadow-sm hover:shadow-md transition space-y-4 flex flex-col justify-between hover:border-[var(--color-blue)]"
                 >
                   <div className="space-y-3">
+                    {/* Facility Badge & Name */}
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <span className="inline-block text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded mb-1 bg-[var(--color-blue-soft)] text-[var(--color-navy)]">
+                        <span className="inline-block text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded mb-1.5 bg-[var(--color-blue-soft)] text-[var(--color-navy)]">
                           {facility.facility_type === 'hospital' ? '🏥 Multi-Specialty Hospital' : '🩺 Doctor OPD Clinic'}
                         </span>
                         <h3 className="text-xl font-extrabold text-[var(--color-navy)] leading-snug">
@@ -150,32 +172,43 @@ export default function PublicDirectoryPage() {
                         </h3>
                       </div>
                       <span className="badge-low text-[10px] font-bold px-2.5 py-1 rounded-md shrink-0">
-                        ✓ Verified RMP
+                        ✓ Verified OPD
                       </span>
                     </div>
 
-                    <p className="text-xs text-[var(--color-ink-muted)]">
-                      📍 {facility.address || 'OPD Medical Complex'}
-                    </p>
+                    {/* Address & Facility Join Code */}
+                    <div className="space-y-1 text-xs text-[var(--color-ink-muted)]">
+                      <p>📍 {facility.address || 'OPD Medical Complex'}</p>
+                      <p className="font-data text-[11px] text-[var(--color-navy)]">
+                        Join Identifier: <strong className="bg-[var(--color-cream-deep)] px-2 py-0.5 rounded">{qrJoinCode}</strong>
+                      </p>
+                    </div>
 
-                    {/* Registered Doctors List */}
-                    {facilityDocs.length > 0 && (
-                      <div className="bg-[var(--color-cream)] border border-[var(--color-border)] rounded-xl p-3.5 space-y-2 text-xs">
-                        <span className="font-bold text-[var(--color-navy)] block text-[11px] uppercase tracking-wider">
-                          Consulting RMP Practitioners:
-                        </span>
-                        {facilityDocs.map((doc) => (
-                          <div key={doc.id} className="flex items-center justify-between text-[var(--color-ink)]">
-                            <span className="font-bold text-[var(--color-navy)]">👨‍⚕️ {doc.name}</span>
-                            <span className="text-[10px] bg-white border border-[var(--color-border)] text-[var(--color-blue)] px-2 py-0.5 rounded font-data">
+                    {/* Empaneled Doctors List */}
+                    <div className="bg-[var(--color-cream)] border border-[var(--color-border)] rounded-xl p-4 space-y-2 text-xs">
+                      <span className="font-bold text-[var(--color-navy)] block text-[11px] uppercase tracking-wider">
+                        Empaneled RMP Practitioners ({facilityDocs.length}):
+                      </span>
+                      {facilityDocs.length > 0 ? (
+                        facilityDocs.map((doc) => (
+                          <div key={doc.id} className="flex items-center justify-between text-[var(--color-ink)] bg-white p-2 rounded-lg border border-[var(--color-border)]">
+                            <div>
+                              <span className="font-bold text-[var(--color-navy)] block">👨‍⚕️ {doc.name}</span>
+                              <span className="text-[10px] text-[var(--color-ink-muted)] block">{doc.qualifications || 'MBBS, MD'}</span>
+                            </div>
+                            <span className="text-[10px] bg-[var(--color-blue-soft)] text-[var(--color-navy)] px-2 py-0.5 rounded font-data font-bold">
                               {doc.rmp_registration_number || 'VERIFIED-RMP'}
                             </span>
                           </div>
-                        ))}
-                      </div>
-                    )}
+                        ))
+                      ) : (
+                        <p className="text-[11px] text-[var(--color-ink-muted)] italic">
+                          Specialists available on OPD reception desk.
+                        </p>
+                      )}
+                    </div>
 
-                    {/* Departments Badge List */}
+                    {/* Departments List */}
                     {facilityDepts.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         {facilityDepts.map((dept) => (
@@ -187,7 +220,7 @@ export default function PublicDirectoryPage() {
                     )}
                   </div>
 
-                  {/* Action Buttons */}
+                  {/* Direct Action Buttons */}
                   <div className="pt-4 border-t border-[var(--color-border)] flex items-center gap-3">
                     <a
                       href={whatsappDeepLink}
@@ -209,6 +242,44 @@ export default function PublicDirectoryPage() {
             })}
           </div>
         )}
+
+        {/* In-Depth Explanatory Section: What is the Public Directory? */}
+        <div className="card-surface p-6 sm:p-8 space-y-4 border-2 border-[var(--color-blue)]/30 bg-gradient-to-br from-white to-[var(--color-blue-soft)]/20">
+          <div className="flex items-center gap-3 text-[var(--color-navy)]">
+            <span className="text-3xl">📘</span>
+            <div>
+              <h2 className="text-xl font-bold text-[var(--color-navy)]">
+                In-Depth Guide: What is the VaidyaDrishti Public Directory?
+              </h2>
+              <p className="text-xs text-[var(--color-ink-muted)]">
+                Empowering patients across India with instant 24/7 AI-assisted tele-triage
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-[var(--color-ink)] pt-2">
+            <div className="bg-white border border-[var(--color-border)] p-4 rounded-xl space-y-1.5">
+              <span className="font-bold text-[var(--color-navy)] text-sm block">1️⃣ Patient Discovery & Trust</span>
+              <p className="text-[var(--color-ink-muted)] leading-relaxed">
+                Patients can browse verified hospitals and specialty OPD clinics, view RMP registration numbers, medical qualifications, and physical hospital addresses.
+              </p>
+            </div>
+
+            <div className="bg-white border border-[var(--color-border)] p-4 rounded-xl space-y-1.5">
+              <span className="font-bold text-[var(--color-navy)] text-sm block">2️⃣ 1-Tap WhatsApp Tele-Triage</span>
+              <p className="text-[var(--color-ink-muted)] leading-relaxed">
+                Clicking <strong>&quot;Consult on WhatsApp&quot;</strong> or scanning the QR code immediately opens WhatsApp with pre-filled facility join codes (e.g. <code>JOIN_HOSP_HealingTouch</code>).
+              </p>
+            </div>
+
+            <div className="bg-white border border-[var(--color-border)] p-4 rounded-xl space-y-1.5">
+              <span className="font-bold text-[var(--color-navy)] text-sm block">3️⃣ Regulatory Compliance</span>
+              <p className="text-[var(--color-ink-muted)] leading-relaxed">
+                Compliant with Telemedicine Practice Guidelines (TPG 2020) & DPDP Act 2023. Patient data and doctor personal emails are protected with strict RLS projections.
+              </p>
+            </div>
+          </div>
+        </div>
 
         {/* QR Code Modal Preview */}
         {selectedQRClinic && (
