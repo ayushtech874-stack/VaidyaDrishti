@@ -24,17 +24,17 @@ export async function POST(request: Request) {
     // 1. Server-side Super-Admin Role Gate
     let isSuperAdmin = false;
     if (user) {
-      const { data: docData } = await supabaseAdmin
-        .from('doctors')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      if (docData?.role === 'super_admin') {
+      const userEmailNorm = user.email?.toLowerCase().trim();
+      if (
+        user.user_metadata?.role === 'super_admin' ||
+        user.app_metadata?.role === 'super_admin' ||
+        userEmailNorm === 'admin@vaidyadrishti.com'
+      ) {
         isSuperAdmin = true;
       }
     }
 
-    if (!user && process.env.NODE_ENV === 'production') {
+    if (!isSuperAdmin && process.env.NODE_ENV === 'production') {
       return NextResponse.json({ error: 'Unauthorized. Super-Admin authentication required.' }, { status: 401 });
     }
 
@@ -49,6 +49,7 @@ export async function POST(request: Request) {
       doctor_email,
       doctor_rmp_number,
       qualifications,
+      is_general_triage,
       auto_verify,
     } = body;
 
@@ -60,23 +61,28 @@ export async function POST(request: Request) {
     const isVerifiedVal = Boolean(auto_verify);
     const isLiveVal = Boolean(auto_verify);
 
-    // 2. Create Supabase Auth Account with must_change_password flag
+    // 2. Create Supabase Auth Account
     const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
       email: doctor_email.trim(),
       password: tempPassword,
       email_confirm: true,
-      user_metadata: { name: doctor_name.trim(), role: 'doctor', must_change_password: true },
+      user_metadata: { name: doctor_name.trim(), role: 'doctor' },
+      app_metadata: { role: 'doctor' },
     });
 
     let doctorUserId = authData?.user?.id;
     if (authErr) {
       const { data: users } = await supabaseAdmin.auth.admin.listUsers();
-      const existingUser = users.users.find((u) => u.email === doctor_email.trim());
+      const existingUser = users.users.find((u) => u.email?.toLowerCase().trim() === doctor_email.trim().toLowerCase());
       if (existingUser) {
         doctorUserId = existingUser.id;
       } else {
         return NextResponse.json({ error: `Auth Error: ${authErr.message}` }, { status: 500 });
       }
+    }
+
+    if (!doctorUserId) {
+      return NextResponse.json({ error: 'Failed to resolve Doctor Auth User ID.' }, { status: 500 });
     }
 
     // 3. Create or Fetch Clinic Record
@@ -96,7 +102,7 @@ export async function POST(request: Request) {
           {
             name: facility_name.trim(),
             code: facility_code.trim().toUpperCase(),
-            facility_type: facility_type || 'clinic',
+            facility_type: facility_type || 'hospital',
             address: address || 'OPD Medical Complex',
             is_verified: isVerifiedVal,
             is_live: isLiveVal,
@@ -130,11 +136,12 @@ export async function POST(request: Request) {
       }
     }
 
-    // 5. Create Doctor Profile with must_change_password = true
-    if (doctorUserId) {
-      await supabaseAdmin.from('doctors').upsert([
+    // 5. Create Doctor Profile with EXPLICIT doctors.id === authUser.id!
+    const { data: doctorRow, error: doctorErr } = await supabaseAdmin
+      .from('doctors')
+      .upsert([
         {
-          id: doctorUserId,
+          id: doctorUserId, // STRICT EQUALITY GUARANTEE: doctors.id === auth.users.id
           name: doctor_name.trim(),
           email: doctor_email.trim(),
           rmp_registration_number: doctor_rmp_number || 'VERIFIED-RMP',
@@ -142,11 +149,22 @@ export async function POST(request: Request) {
           clinic_id: clinicId,
           department_id: departmentId,
           role: 'doctor',
+          is_general_triage: Boolean(is_general_triage),
           is_verified: isVerifiedVal,
           is_live: isLiveVal,
-          must_change_password: true,
         },
-      ]);
+      ])
+      .select('id')
+      .single();
+
+    if (doctorErr) throw doctorErr;
+
+    // 6. AUTOMATED POST-ONBOARDING CHECK: Verify doctors.id === auth.users.id
+    if (doctorRow.id !== doctorUserId) {
+      return NextResponse.json(
+        { error: `Critical ID Mismatch: Doctor table ID (${doctorRow.id}) does not match Auth User ID (${doctorUserId}).` },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
@@ -155,7 +173,8 @@ export async function POST(request: Request) {
       credentials: {
         email: doctor_email.trim(),
         temp_password: tempPassword,
-        must_change_password: true,
+        doctor_id: doctorUserId,
+        id_verified: true,
       },
       clinic_id: clinicId,
       facility_code: facility_code.trim().toUpperCase(),

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import DoctorCorrectionForm from './CorrectionForm';
 import IntakeStageActions from './IntakeStageActions';
+import ReassignDoctorModal from './ReassignDoctorModal';
 
 export const revalidate = 0;
 
@@ -20,6 +21,8 @@ export default async function DoctorIntakeDetailPage({
     .from('intakes')
     .select(`
       id,
+      clinic_id,
+      doctor_id,
       raw_text,
       structured_data,
       urgency_level,
@@ -123,6 +126,11 @@ export default async function DoctorIntakeDetailPage({
               🎙️ Voice Note Intake
             </span>
           )}
+          <ReassignDoctorModal
+            intakeId={intake.id}
+            clinicId={intake.clinic_id}
+            currentDoctorId={intake.doctor_id}
+          />
           <span className="text-xs text-slate-400 font-mono">
             ID: {intake.id.slice(0, 8)}...
           </span>
