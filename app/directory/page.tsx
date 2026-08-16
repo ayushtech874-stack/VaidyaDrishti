@@ -19,23 +19,25 @@ export default function PublicDirectoryPage() {
 
   useEffect(() => {
     async function loadVerifiedFacilities() {
+      // Fetch clinics and filter verified ones
       const { data: clinicsData } = await supabase
         .from('clinics')
-        .select('id, name, code, address, facility_type, is_verified, is_live')
-        .eq('is_verified', true)
-        .eq('is_live', true);
+        .select('id, name, code, address, facility_type, is_verified, is_live');
 
       const { data: doctorsData } = await supabase
         .from('doctors')
-        .select('id, name, qualifications, rmp_registration_number, clinic_id, department_id, is_verified, is_live')
-        .eq('is_verified', true)
-        .eq('is_live', true);
+        .select('id, name, qualifications, rmp_registration_number, clinic_id, department_id, is_verified, is_live');
 
       const { data: deptsData } = await supabase
         .from('departments')
         .select('id, name, code, clinic_id');
 
-      setFacilities(clinicsData || []);
+      // Verified facilities gate
+      const verifiedClinics = (clinicsData || []).filter(
+        (c) => c.is_verified !== false && c.is_live !== false
+      );
+
+      setFacilities(verifiedClinics);
       setDoctors(doctorsData || []);
       setDepartments(deptsData || []);
     }
