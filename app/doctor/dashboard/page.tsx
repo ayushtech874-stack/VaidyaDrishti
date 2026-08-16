@@ -66,7 +66,7 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
         if (targetDoc.clinic_id) {
           const { data: clinicData } = await supabaseAdmin
             .from('clinics')
-            .select('name, code, facility_type')
+            .select('id, name, code, address')
             .eq('id', targetDoc.clinic_id)
             .maybeSingle();
           clinicProfile = clinicData;
@@ -78,7 +78,7 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
       if (docData.clinic_id) {
         const { data: clinicData } = await supabaseAdmin
           .from('clinics')
-          .select('name, code, facility_type')
+          .select('id, name, code, address')
           .eq('id', docData.clinic_id)
           .maybeSingle();
         clinicProfile = clinicData;
