@@ -94,7 +94,6 @@ function DashboardContent({
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
-  // Force Password Reset state
   const [showPasswordResetModal, setShowPasswordResetModal] = useState<boolean>(
     Boolean(initialIntakes && (initialIntakes as any).mustChangePassword)
   );
@@ -135,12 +134,10 @@ function DashboardContent({
     }
   }
 
-  // Sync initial intakes prop
   useEffect(() => {
     setIntakes(initialIntakes);
   }, [initialIntakes]);
 
-  // Sync activeTab if URL searchParams change
   useEffect(() => {
     if (tabParam === 'in_progress' || tabParam === 'history' || tabParam === 'pending') {
       setActiveTab(tabParam);
@@ -259,23 +256,23 @@ function DashboardContent({
 
   return (
     <div className="space-y-6">
-      {/* ⚠️ ITEM 3: DISTINCT UNLINKED ACCOUNT WARNING BANNER */}
+      {/* ⚠️ DISTINCT UNLINKED ACCOUNT WARNING BANNER */}
       {isUnlinkedAccount && (
-        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 shadow-sm text-amber-950 space-y-2">
+        <div className="bg-[var(--color-urgent-medium-bg)] border-2 border-[var(--color-urgent-medium)] rounded-2xl p-5 shadow-sm text-[var(--color-ink)] space-y-2">
           <div className="flex items-center gap-3">
             <span className="text-2xl font-bold">⚠️</span>
             <div>
-              <h3 className="text-base font-extrabold text-amber-900">
-                Unlinked Account Warning
+              <h3 className="text-base font-extrabold text-[var(--color-navy)]">
+                Unlinked Doctor Account Warning
               </h3>
-              <p className="text-xs text-amber-800">
+              <p className="text-xs text-[var(--color-ink-muted)]">
                 This account is currently not linked to a specific clinic queue or doctor assignment.
               </p>
             </div>
           </div>
-          <p className="text-xs text-amber-700 bg-white/80 border border-amber-200/80 p-3 rounded-xl font-medium">
+          <p className="text-xs text-[var(--color-ink-muted)] bg-white/80 border border-[var(--color-border)] p-3 rounded-xl font-medium">
             Contact your Super-Admin to link this account to a clinic queue, or visit{' '}
-            <Link href="/admin/onboarding" className="underline font-bold text-amber-900">
+            <Link href="/admin/onboarding" className="underline font-bold text-[var(--color-navy)]">
               /admin/onboarding
             </Link>{' '}
             to assign clinic credentials.
@@ -286,59 +283,55 @@ function DashboardContent({
       {/* Mandatory Password Change Modal for Temporary Credentials */}
       {showPasswordResetModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-amber-300 space-y-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-[var(--color-urgent-medium)] space-y-4">
             <div className="text-center space-y-2">
-              <div className="w-12 h-12 bg-amber-100 text-amber-800 rounded-full flex items-center justify-center text-2xl mx-auto font-bold">
+              <div className="w-12 h-12 bg-[var(--color-urgent-medium-bg)] text-[var(--color-urgent-medium)] rounded-full flex items-center justify-center text-2xl mx-auto font-bold">
                 🔐
               </div>
-              <h3 className="text-xl font-bold text-slate-900">
+              <h3 className="text-xl font-bold text-[var(--color-navy)]">
                 Action Required: Set New Password
               </h3>
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-[var(--color-ink-muted)]">
                 You logged in with a temporary admin-generated password. Please create your private secure password to access your patient queue.
               </p>
             </div>
 
             {passwordResetError && (
-              <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-xl text-xs font-semibold">
+              <div className="bg-[var(--color-urgent-high-bg)] border border-[var(--color-urgent-high)] text-[var(--color-urgent-high)] p-3 rounded-xl text-xs font-semibold">
                 {passwordResetError}
               </div>
             )}
 
             <form onSubmit={handleForcePasswordChange} className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-bold text-[var(--color-navy)] uppercase tracking-wider mb-1">
                   New Private Password (min 8 chars) *
                 </label>
                 <input
                   type="password"
                   value={newPasswordVal}
                   onChange={(e) => setNewPasswordVal(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-xl p-3 text-sm focus:outline-none focus:border-[var(--color-blue)]"
                   required
                   minLength={8}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-bold text-[var(--color-navy)] uppercase tracking-wider mb-1">
                   Confirm New Password *
                 </label>
                 <input
                   type="password"
                   value={confirmPasswordVal}
                   onChange={(e) => setConfirmPasswordVal(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-xl p-3 text-sm focus:outline-none focus:border-[var(--color-blue)]"
                   required
                   minLength={8}
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={isResettingPassword}
-                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-sm py-3 rounded-xl shadow transition"
-              >
+              <button type="submit" disabled={isResettingPassword} className="btn-primary w-full text-sm py-3">
                 {isResettingPassword ? 'Updating Password...' : 'Save New Password & Enter Queue →'}
               </button>
             </form>
@@ -347,20 +340,20 @@ function DashboardContent({
       )}
 
       {/* Tab Navigation Bar */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-3">
+      <div className="flex flex-wrap items-center gap-3 border-b border-[var(--color-border)] pb-3">
         <button
           type="button"
           onClick={() => handleTabChange('pending')}
           className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm transition-all duration-150 ${
             activeTab === 'pending'
-              ? 'bg-emerald-600 text-white shadow-md scale-[1.02]'
-              : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+              ? 'bg-[var(--color-navy)] text-white shadow-md'
+              : 'bg-white text-[var(--color-navy)] border border-[var(--color-border)] hover:bg-[var(--color-blue-soft)]'
           }`}
         >
           <span>📋 Active Waiting Queue</span>
           <span
-            className={`text-xs px-2.5 py-0.5 rounded-full ${
-              activeTab === 'pending' ? 'bg-emerald-800 text-white' : 'bg-slate-200 text-slate-800'
+            className={`text-xs px-2.5 py-0.5 rounded-full font-data ${
+              activeTab === 'pending' ? 'bg-[var(--color-blue)] text-white' : 'bg-[var(--color-cream-deep)] text-[var(--color-ink)]'
             }`}
           >
             {pendingIntakes.length}
@@ -372,14 +365,14 @@ function DashboardContent({
           onClick={() => handleTabChange('in_progress')}
           className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm transition-all duration-150 ${
             activeTab === 'in_progress'
-              ? 'bg-amber-500 text-white shadow-md scale-[1.02]'
-              : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+              ? 'bg-[var(--color-urgent-medium)] text-white shadow-md'
+              : 'bg-white text-[var(--color-navy)] border border-[var(--color-border)] hover:bg-[var(--color-blue-soft)]'
           }`}
         >
-          <span>🩺 Under Consultation / Heard Grievance (Not Treated Yet)</span>
+          <span>🩺 Under Consultation</span>
           <span
-            className={`text-xs px-2.5 py-0.5 rounded-full ${
-              activeTab === 'in_progress' ? 'bg-amber-800 text-white' : 'bg-slate-200 text-slate-800'
+            className={`text-xs px-2.5 py-0.5 rounded-full font-data ${
+              activeTab === 'in_progress' ? 'bg-[var(--color-navy)] text-white' : 'bg-[var(--color-cream-deep)] text-[var(--color-ink)]'
             }`}
           >
             {inProgressIntakes.length}
@@ -391,14 +384,14 @@ function DashboardContent({
           onClick={() => handleTabChange('history')}
           className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm transition-all duration-150 ${
             activeTab === 'history'
-              ? 'bg-slate-900 text-white shadow-md scale-[1.02]'
-              : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+              ? 'bg-[var(--color-urgent-low)] text-white shadow-md'
+              : 'bg-white text-[var(--color-navy)] border border-[var(--color-border)] hover:bg-[var(--color-blue-soft)]'
           }`}
         >
           <span>✅ Treated & Cured History</span>
           <span
-            className={`text-xs px-2.5 py-0.5 rounded-full ${
-              activeTab === 'history' ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-800'
+            className={`text-xs px-2.5 py-0.5 rounded-full font-data ${
+              activeTab === 'history' ? 'bg-[var(--color-navy)] text-white' : 'bg-[var(--color-cream-deep)] text-[var(--color-ink)]'
             }`}
           >
             {reviewedIntakes.length}
@@ -409,17 +402,17 @@ function DashboardContent({
       {/* Delete Confirmation Modal */}
       {deleteTargetId && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-red-200 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center gap-3 text-red-900">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-xl font-bold">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-[var(--color-urgent-high)] space-y-4">
+            <div className="flex items-center gap-3 text-[var(--color-urgent-high)]">
+              <div className="w-10 h-10 bg-[var(--color-urgent-high-bg)] rounded-full flex items-center justify-center text-xl font-bold">
                 🗑️
               </div>
-              <h3 className="text-lg font-bold text-slate-900">
+              <h3 className="text-lg font-bold text-[var(--color-navy)]">
                 Delete Patient Intake Record?
               </h3>
             </div>
 
-            <p className="text-sm text-slate-600 leading-relaxed">
+            <p className="text-sm text-[var(--color-ink-muted)] leading-relaxed">
               Are you sure you want to permanently delete this intake record from your clinic dashboard?
             </p>
 
@@ -427,14 +420,14 @@ function DashboardContent({
               <button
                 type="button"
                 onClick={() => setDeleteTargetId(null)}
-                className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition"
+                className="btn-secondary text-sm"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={confirmDeleteIntake}
-                className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow transition"
+                className="btn-destructive text-sm"
               >
                 Yes, Delete Record →
               </button>
@@ -445,14 +438,17 @@ function DashboardContent({
 
       {/* Clean Queue List */}
       {currentList.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-500">
-          {isUnlinkedAccount
-            ? '⚠️ Unlinked Account: No clinic queue associated with this login.'
-            : activeTab === 'history'
-            ? 'No treated & cured patient records in history yet.'
-            : activeTab === 'in_progress'
-            ? 'No patients currently inside the consultation room.'
-            : '🎉 All caught up! No pending patients waiting in your clinic queue.'}
+        <div className="card-surface p-12 text-center text-[var(--color-ink-muted)] space-y-2">
+          <span className="text-3xl">📋</span>
+          <p className="text-base font-bold text-[var(--color-navy)]">
+            {isUnlinkedAccount
+              ? '⚠️ Unlinked Account: No clinic queue associated with this login.'
+              : activeTab === 'history'
+              ? 'No treated & cured patient records in history yet.'
+              : activeTab === 'in_progress'
+              ? 'No patients currently inside the consultation room.'
+              : '🎉 All caught up! No pending patients waiting in your clinic queue.'}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
@@ -468,17 +464,11 @@ function DashboardContent({
             return (
               <div
                 key={intake.id}
-                className={`bg-white border rounded-2xl p-5 shadow-sm transition-all hover:shadow-md ${
-                  urgency === 'high'
-                    ? 'border-red-300 bg-red-50/20'
-                    : urgency === 'medium'
-                    ? 'border-amber-300 bg-amber-50/20'
-                    : 'border-slate-200'
-                }`}
+                className="card-surface p-6 shadow-sm transition-all hover:shadow-md space-y-4"
               >
-                <div className="flex flex-wrap items-start justify-between gap-4 mb-3">
+                <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="flex items-start gap-3">
-                    <div className="bg-slate-900 text-white font-extrabold text-sm px-3.5 py-2 rounded-xl flex items-center justify-center shadow-sm">
+                    <div className="bg-[var(--color-navy)] text-white font-data text-sm font-bold px-3 py-1.5 rounded-lg shadow-sm">
                       #{queuePosition}
                     </div>
 
@@ -486,51 +476,52 @@ function DashboardContent({
                       <div className="flex flex-wrap items-center gap-3">
                         <Link
                           href={`/doctor/intake/${intake.id}`}
-                          className="font-bold text-slate-900 text-lg hover:text-emerald-700 transition"
+                          className="font-extrabold text-[var(--color-navy)] text-xl hover:text-[var(--color-blue)] transition"
                         >
                           {patient?.name || 'Unknown Patient'}
                         </Link>
 
-                        <span className="text-sm text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full font-medium">
+                        <span className="text-xs font-bold text-[var(--color-ink-muted)] bg-[var(--color-cream-deep)] px-2.5 py-0.5 rounded-full font-data">
                           Age: {patient?.age} yrs
                         </span>
 
                         {isReviewedStatus(status) && (
-                          <span className="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-bold">
+                          <span className="text-xs bg-[var(--color-urgent-low-bg)] text-[var(--color-urgent-low)] px-2.5 py-0.5 rounded-full font-bold">
                             ✅ Treated & Cured
                           </span>
                         )}
                         {isConsultationStatus(status) && (
-                          <span className="text-xs bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full font-bold animate-pulse">
-                            🩺 Under Consultation Room
+                          <span className="text-xs bg-[var(--color-urgent-medium-bg)] text-[var(--color-urgent-medium)] px-2.5 py-0.5 rounded-full font-bold">
+                            🩺 Under Consultation
                           </span>
                         )}
                         {isPendingStatus(status) && (
-                          <span className="text-xs bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full font-semibold">
+                          <span className="text-xs bg-[var(--color-blue-soft)] text-[var(--color-navy)] px-2.5 py-0.5 rounded-full font-bold">
                             ⏳ Waiting in Queue
                           </span>
                         )}
                       </div>
 
-                      <div className="text-xs text-slate-400">
+                      <div className="text-xs text-[var(--color-ink-muted)] font-data">
                         Phone: {patient?.phone} • Submitted {formatTimeAgo(intake.created_at)}
                       </div>
                     </div>
                   </div>
 
+                  {/* Urgency Badge Pair */}
                   <div>
                     {urgency === 'high' && (
-                      <span className="inline-flex items-center gap-1.5 bg-red-600 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-full shadow-sm animate-pulse">
+                      <span className="badge-high font-extrabold text-xs px-3.5 py-1.5 rounded-full uppercase tracking-wider">
                         🔴 HIGH URGENCY
                       </span>
                     )}
                     {urgency === 'medium' && (
-                      <span className="inline-flex items-center gap-1.5 bg-amber-500 text-white font-bold text-xs px-3.5 py-1.5 rounded-full shadow-sm">
+                      <span className="badge-medium font-bold text-xs px-3.5 py-1.5 rounded-full uppercase tracking-wider">
                         🟡 MEDIUM URGENCY
                       </span>
                     )}
                     {urgency === 'low' && (
-                      <span className="inline-flex items-center gap-1.5 bg-emerald-600 text-white font-semibold text-xs px-3.5 py-1.5 rounded-full">
+                      <span className="badge-low font-semibold text-xs px-3.5 py-1.5 rounded-full uppercase tracking-wider">
                         🟢 LOW URGENCY
                       </span>
                     )}
@@ -538,11 +529,11 @@ function DashboardContent({
                 </div>
 
                 {intake.red_flags && intake.red_flags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mb-3">
+                  <div className="flex flex-wrap gap-1.5">
                     {intake.red_flags.map((flag: string, idx: number) => (
                       <span
                         key={idx}
-                        className="text-xs font-semibold bg-red-100 text-red-800 border border-red-200 px-2.5 py-1 rounded-md"
+                        className="text-xs font-semibold bg-[var(--color-urgent-high-bg)] text-[var(--color-urgent-high)] border border-[var(--color-urgent-high)] px-2.5 py-1 rounded-md"
                       >
                         ⚠️ {flag}
                       </span>
@@ -550,8 +541,8 @@ function DashboardContent({
                   </div>
                 )}
 
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 mb-4 text-xs text-slate-800 space-y-1">
-                  <span className="font-bold text-indigo-900 block text-[11px] uppercase tracking-wider">
+                <div className="bg-[var(--color-blue-soft)] border border-[var(--color-blue)]/20 rounded-xl p-4 text-xs text-[var(--color-ink)] space-y-1">
+                  <span className="font-bold text-[var(--color-navy)] block text-[11px] uppercase tracking-wider">
                     📋 Clinical Symptom Overview:
                   </span>
                   <p className="leading-relaxed font-medium italic">
@@ -559,14 +550,14 @@ function DashboardContent({
                   </p>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between border-t border-slate-100 pt-3 gap-3">
+                <div className="flex flex-wrap items-center justify-between border-t border-[var(--color-border)] pt-3 gap-3">
                   <div className="flex items-center gap-2 text-xs font-semibold">
-                    <span className="text-slate-500 font-medium">Ladder Shift:</span>
+                    <span className="text-[var(--color-ink-muted)]">Queue Shift:</span>
                     <button
                       type="button"
                       disabled={isFirst || isUpdating === intake.id}
                       onClick={() => swapLadderPosition(index, 'up')}
-                      className="bg-indigo-50 hover:bg-indigo-100 disabled:opacity-30 text-indigo-800 font-bold px-3 py-1.5 rounded-lg border border-indigo-200 transition active:scale-95"
+                      className="btn-secondary text-xs py-1 px-3"
                     >
                       ▲ Move Up
                     </button>
@@ -574,7 +565,7 @@ function DashboardContent({
                       type="button"
                       disabled={isLast || isUpdating === intake.id}
                       onClick={() => swapLadderPosition(index, 'down')}
-                      className="bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-700 font-bold px-3 py-1.5 rounded-lg border border-slate-300 transition active:scale-95"
+                      className="btn-secondary text-xs py-1 px-3"
                     >
                       ▼ Move Down
                     </button>
@@ -586,9 +577,9 @@ function DashboardContent({
                         type="button"
                         disabled={isUpdating === intake.id}
                         onClick={() => changePatientStatus(intake.id, 'in_progress')}
-                        className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-2 rounded-xl transition shadow-sm active:scale-95"
+                        className="bg-[var(--color-urgent-medium)] text-white text-xs font-bold px-3 py-2 rounded-lg"
                       >
-                        🩺 Send to Consultation Room
+                        🩺 Consultation Room
                       </button>
                     )}
 
@@ -597,20 +588,9 @@ function DashboardContent({
                         type="button"
                         disabled={isUpdating === intake.id}
                         onClick={() => changePatientStatus(intake.id, 'treated')}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition shadow-sm active:scale-95"
+                        className="bg-[var(--color-urgent-low)] text-white text-xs font-bold px-3 py-2 rounded-lg"
                       >
-                        ✅ Mark Treated & Cured
-                      </button>
-                    )}
-
-                    {!isPendingStatus(status) && (
-                      <button
-                        type="button"
-                        disabled={isUpdating === intake.id}
-                        onClick={() => changePatientStatus(intake.id, 'pending')}
-                        className="bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-semibold px-2.5 py-2 rounded-xl transition"
-                      >
-                        📋 Move Back to Waiting Queue
+                        ✅ Mark Treated
                       </button>
                     )}
 
@@ -618,17 +598,16 @@ function DashboardContent({
                       type="button"
                       disabled={isUpdating === intake.id}
                       onClick={() => setDeleteTargetId(intake.id)}
-                      className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold px-2.5 py-2 rounded-xl transition active:scale-95"
-                      title="Delete Record"
+                      className="text-[var(--color-urgent-high)] border border-[var(--color-urgent-high)] px-2.5 py-2 rounded-lg text-xs font-bold"
                     >
                       🗑️
                     </button>
 
                     <Link
                       href={`/doctor/intake/${intake.id}`}
-                      className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm active:scale-95 flex items-center gap-1"
+                      className="btn-primary text-xs py-2 px-4 flex items-center gap-1"
                     >
-                      Open Full Details →
+                      Open Details →
                     </Link>
                   </div>
                 </div>
@@ -643,7 +622,7 @@ function DashboardContent({
 
 export default function DashboardClientView(props: DashboardClientViewProps) {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-slate-400">Loading dashboard view...</div>}>
+    <Suspense fallback={<div className="p-8 text-center text-[var(--color-ink-muted)]">Loading clinical dashboard...</div>}>
       <DashboardContent {...props} />
     </Suspense>
   );

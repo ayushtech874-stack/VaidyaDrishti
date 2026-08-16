@@ -362,15 +362,15 @@ export default async function DoctorIntakeDetailPage({
       </div>
 
       {/* Collapsible Original Raw Transcript */}
-      <details id="raw-transcript-details" className="bg-white border border-slate-200 rounded-2xl shadow-sm group">
-        <summary className="p-5 font-bold text-slate-800 cursor-pointer flex items-center justify-between select-none">
+      <details id="raw-transcript-details" className="bg-[var(--color-blue-soft)] border border-[var(--color-blue)]/30 rounded-2xl shadow-sm group">
+        <summary className="p-5 font-bold text-[var(--color-navy)] cursor-pointer flex items-center justify-between select-none">
           <span>📄 Original Patient Raw Transcript / ASR Text (Click to Expand & Verify)</span>
-          <span className="text-slate-400 text-sm group-open:rotate-180 transition-transform">
+          <span className="text-[var(--color-navy)] text-sm group-open:rotate-180 transition-transform">
             ▼
           </span>
         </summary>
-        <div className="p-5 pt-0 border-t border-slate-100">
-          <div className="bg-slate-900 text-slate-100 p-4 rounded-xl font-mono text-sm leading-relaxed whitespace-pre-wrap mt-3">
+        <div className="p-5 pt-0 border-t border-[var(--color-blue)]/20">
+          <div className="bg-[var(--color-navy)] text-white p-4 rounded-xl font-data text-sm leading-relaxed whitespace-pre-wrap mt-3 border border-[var(--color-border-on-navy)]">
             {intake.raw_text}
           </div>
         </div>
