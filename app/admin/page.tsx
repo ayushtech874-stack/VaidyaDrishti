@@ -22,13 +22,13 @@ export default async function SuperAdminDashboardPage() {
       <header className="bg-[var(--color-navy)] text-white py-6 px-4 border-b border-[var(--color-border-on-navy)] shadow-md">
         <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 bg-[var(--color-blue)]/30 text-[var(--color-blue-soft)] px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-1">
+            <div className="inline-flex items-center gap-2 bg-[var(--color-blue)]/30 text-[var(--color-blue-soft)] px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-2">
               <span>👑 Super-Admin Platform Command Center</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight" style={{ color: '#FFFFFF' }}>
               VaidyaDrishti Executive Portal
             </h1>
-            <p className="text-xs text-[var(--color-blue-soft)]">
+            <p className="text-xs text-[var(--color-blue-soft)] mt-0.5">
               Multi-tenant management, hospital onboarding, QR posters & directory verification
             </p>
           </div>
