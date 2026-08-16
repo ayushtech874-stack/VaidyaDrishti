@@ -10,6 +10,7 @@ interface DashboardClientViewProps {
   doctorRmpNo: string;
   clinicDisplayName: string;
   mustChangePassword?: boolean;
+  isUnlinkedAccount?: boolean;
 }
 
 function formatTimeAgo(dateString: string): string {
@@ -80,6 +81,7 @@ function applyOverrides(rawIntakes: any[]): any[] {
 
 function DashboardContent({
   initialIntakes,
+  isUnlinkedAccount,
 }: DashboardClientViewProps) {
   const searchParams = useSearchParams();
 
@@ -93,7 +95,9 @@ function DashboardContent({
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   // Force Password Reset state
-  const [showPasswordResetModal, setShowPasswordResetModal] = useState<boolean>(Boolean(initialIntakes && (initialIntakes as any).mustChangePassword));
+  const [showPasswordResetModal, setShowPasswordResetModal] = useState<boolean>(
+    Boolean(initialIntakes && (initialIntakes as any).mustChangePassword)
+  );
   const [newPasswordVal, setNewPasswordVal] = useState('');
   const [confirmPasswordVal, setConfirmPasswordVal] = useState('');
   const [passwordResetError, setPasswordResetError] = useState('');
@@ -148,10 +152,8 @@ function DashboardContent({
     window.history.replaceState(null, '', `/doctor/dashboard?tab=${tab}`);
   };
 
-  // Synchronously compute effective intakes with overrides
   const effectiveIntakes = applyOverrides(intakes);
 
-  // Robust multi-variant status filtering
   const pendingIntakes = effectiveIntakes.filter((i) => isPendingStatus(i.status));
   const inProgressIntakes = effectiveIntakes.filter((i) => isConsultationStatus(i.status));
   const reviewedIntakes = effectiveIntakes.filter((i) => isReviewedStatus(i.status));
@@ -165,13 +167,11 @@ function DashboardContent({
     currentList = pendingIntakes;
   }
 
-  // Delete Patient Intake Record
   async function confirmDeleteIntake() {
     if (!deleteTargetId) return;
     const targetId = deleteTargetId;
     setIsUpdating(targetId);
 
-    // Instant local removal
     removeStatusOverride(targetId);
     setIntakes((prev) => prev.filter((i) => i.id !== targetId));
     setDeleteTargetId(null);
@@ -189,7 +189,6 @@ function DashboardContent({
     }
   }
 
-  // 1-Click Status Transition Action (Persisted in DB & LocalStorage)
   async function changePatientStatus(intakeId: string, newStatus: 'pending' | 'in_progress' | 'treated') {
     setIsUpdating(intakeId);
 
@@ -200,11 +199,8 @@ function DashboardContent({
     };
 
     const targetDbStatus = dbStatusMap[newStatus];
-
-    // Save override locally synchronously
     saveStatusOverride(intakeId, targetDbStatus);
 
-    // Instant state update
     setIntakes((prev) =>
       prev.map((item) => (item.id === intakeId ? { ...item, status: targetDbStatus } : item))
     );
@@ -222,7 +218,6 @@ function DashboardContent({
     }
   }
 
-  // Instant Ladder Position Swap Action (Move Up / Move Down)
   async function swapLadderPosition(currentIndex: number, direction: 'up' | 'down') {
     const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
     if (targetIndex < 0 || targetIndex >= currentList.length) return;
@@ -232,7 +227,6 @@ function DashboardContent({
 
     setIsUpdating(currentItem.id);
 
-    // Instant local state swap (<10ms)
     const newIntakes = [...intakes];
     const itemAIdx = newIntakes.findIndex((i) => i.id === currentItem.id);
     const itemBIdx = newIntakes.findIndex((i) => i.id === targetItem.id);
@@ -265,6 +259,30 @@ function DashboardContent({
 
   return (
     <div className="space-y-6">
+      {/* ⚠️ ITEM 3: DISTINCT UNLINKED ACCOUNT WARNING BANNER */}
+      {isUnlinkedAccount && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 shadow-sm text-amber-950 space-y-2">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl font-bold">⚠️</span>
+            <div>
+              <h3 className="text-base font-extrabold text-amber-900">
+                Unlinked Account Warning
+              </h3>
+              <p className="text-xs text-amber-800">
+                This account is currently not linked to a specific clinic queue or doctor assignment.
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-amber-700 bg-white/80 border border-amber-200/80 p-3 rounded-xl font-medium">
+            Contact your Super-Admin to link this account to a clinic queue, or visit{' '}
+            <Link href="/admin/onboarding" className="underline font-bold text-amber-900">
+              /admin/onboarding
+            </Link>{' '}
+            to assign clinic credentials.
+          </p>
+        </div>
+      )}
+
       {/* Mandatory Password Change Modal for Temporary Credentials */}
       {showPasswordResetModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
@@ -327,7 +345,8 @@ function DashboardContent({
           </div>
         </div>
       )}
-      {/* Instant 0ms Tab Navigation Bar */}
+
+      {/* Tab Navigation Bar */}
       <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-3">
         <button
           type="button"
@@ -427,7 +446,9 @@ function DashboardContent({
       {/* Clean Queue List */}
       {currentList.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-500">
-          {activeTab === 'history'
+          {isUnlinkedAccount
+            ? '⚠️ Unlinked Account: No clinic queue associated with this login.'
+            : activeTab === 'history'
             ? 'No treated & cured patient records in history yet.'
             : activeTab === 'in_progress'
             ? 'No patients currently inside the consultation room.'
@@ -457,7 +478,6 @@ function DashboardContent({
               >
                 <div className="flex flex-wrap items-start justify-between gap-4 mb-3">
                   <div className="flex items-start gap-3">
-                    {/* Queue Position Badge */}
                     <div className="bg-slate-900 text-white font-extrabold text-sm px-3.5 py-2 rounded-xl flex items-center justify-center shadow-sm">
                       #{queuePosition}
                     </div>
@@ -498,7 +518,6 @@ function DashboardContent({
                     </div>
                   </div>
 
-                  {/* Urgency Badge */}
                   <div>
                     {urgency === 'high' && (
                       <span className="inline-flex items-center gap-1.5 bg-red-600 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-full shadow-sm animate-pulse">
@@ -518,7 +537,6 @@ function DashboardContent({
                   </div>
                 </div>
 
-                {/* Red Flags Tags */}
                 {intake.red_flags && intake.red_flags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {intake.red_flags.map((flag: string, idx: number) => (
@@ -532,7 +550,6 @@ function DashboardContent({
                   </div>
                 )}
 
-                {/* Short AI Clinical Description Snippet */}
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 mb-4 text-xs text-slate-800 space-y-1">
                   <span className="font-bold text-indigo-900 block text-[11px] uppercase tracking-wider">
                     📋 Clinical Symptom Overview:
@@ -542,7 +559,6 @@ function DashboardContent({
                   </p>
                 </div>
 
-                {/* Sleek Action Footer: Ladder Controls + Direct Status Shift Buttons */}
                 <div className="flex flex-wrap items-center justify-between border-t border-slate-100 pt-3 gap-3">
                   <div className="flex items-center gap-2 text-xs font-semibold">
                     <span className="text-slate-500 font-medium">Ladder Shift:</span>
@@ -565,7 +581,6 @@ function DashboardContent({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {/* Stage Transition Quick Buttons */}
                     {!isConsultationStatus(status) && !isReviewedStatus(status) && (
                       <button
                         type="button"

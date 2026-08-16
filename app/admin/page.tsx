@@ -92,7 +92,7 @@ export default async function SuperAdminDashboardPage() {
           <span>⚡</span> Super-Admin Command Actions
         </h3>
         <p className="text-xs text-slate-300">
-          Super-Admin command portal for managing hospitals, generating OPD posters, and approving public directory listings.
+          Super-Admin command portal for managing hospitals, generating OPD posters, and inspecting doctor clinical queues.
         </p>
         <div className="flex flex-wrap gap-3 pt-2">
           <Link
@@ -113,20 +113,14 @@ export default async function SuperAdminDashboardPage() {
           >
             🌐 View / Manage Public Facility Directory
           </Link>
-          <Link
-            href="/doctor/dashboard"
-            className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-700 transition"
-          >
-            👨‍⚕️ Preview Doctor Queue View
-          </Link>
         </div>
       </div>
 
-      {/* Empaneled RMP Doctors & Facilities Table */}
+      {/* Empaneled RMP Doctors & Facilities Table with View As Actions */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            👨‍⚕️ Empaneled RMP Doctors & Facilities
+            👨‍⚕️ Empaneled RMP Doctors & Queue Inspection Actions
           </h3>
           <span className="text-xs bg-indigo-100 text-indigo-800 font-bold px-2.5 py-1 rounded-md">
             Multi-Tenant Network Active
@@ -141,30 +135,30 @@ export default async function SuperAdminDashboardPage() {
                   <th className="py-2.5 px-3">Doctor Name</th>
                   <th className="py-2.5 px-3">Email Account</th>
                   <th className="py-2.5 px-3">RMP Reg Number</th>
-                  <th className="py-2.5 px-3">Role</th>
-                  <th className="py-2.5 px-3">Verification</th>
+                  <th className="py-2.5 px-3">Assigned Facility</th>
+                  <th className="py-2.5 px-3 text-right">Inspection Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-mono">
-                {doctors.map((doc: any) => (
-                  <tr key={doc.id} className="hover:bg-slate-50">
-                    <td className="py-2.5 px-3 font-bold text-slate-900">{doc.name}</td>
-                    <td className="py-2.5 px-3 text-slate-600">{doc.email}</td>
-                    <td className="py-2.5 px-3 text-indigo-600 font-semibold">{doc.rmp_registration_number || 'SUPER-ADMIN'}</td>
-                    <td className="py-2.5 px-3 text-slate-500 font-bold uppercase">{doc.role || 'doctor'}</td>
-                    <td className="py-2.5 px-3">
-                      <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${
-                        doc.role === 'super_admin'
-                          ? 'bg-purple-100 text-purple-800'
-                          : doc.is_verified
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        {doc.role === 'super_admin' ? '👑 SUPER ADMIN' : doc.is_verified ? '✅ VERIFIED' : '⏳ PENDING'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {doctors.map((doc: any) => {
+                  const facility = (clinics || []).find((c) => c.id === doc.clinic_id);
+                  return (
+                    <tr key={doc.id} className="hover:bg-slate-50">
+                      <td className="py-2.5 px-3 font-bold text-slate-900">{doc.name}</td>
+                      <td className="py-2.5 px-3 text-slate-600">{doc.email}</td>
+                      <td className="py-2.5 px-3 text-indigo-600 font-semibold">{doc.rmp_registration_number || 'RMP-VERIFIED'}</td>
+                      <td className="py-2.5 px-3 text-slate-500 font-semibold">{facility?.name || 'Unassigned'}</td>
+                      <td className="py-2.5 px-3 text-right">
+                        <Link
+                          href={`/doctor/dashboard?as_doctor_id=${doc.id}`}
+                          className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-[11px] px-3 py-1.5 rounded-lg transition shadow-sm inline-flex items-center gap-1 font-sans"
+                        >
+                          👁️ View Queue as Dr. {doc.name.split(' ')[1] || doc.name}
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
