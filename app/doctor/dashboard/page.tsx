@@ -37,10 +37,10 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
       user.app_metadata?.role === 'super_admin' ||
       userEmailNorm === 'admin@vaidyadrishti.com';
 
-    // 1. Robust Dual Lookup: Search doctor profile by ID OR by Email
+    // 1. Resilient Dual Lookup: Search doctor profile by ID OR by Email (EXCLUDING optional columns)
     const { data: docData } = await supabaseAdmin
       .from('doctors')
-      .select('id, name, email, rmp_registration_number, clinic_id, department_id, role, must_change_password')
+      .select('id, name, email, rmp_registration_number, clinic_id, department_id, role')
       .or(`id.eq.${user.id}${userEmailNorm ? `,email.eq.${userEmailNorm}` : ''}`)
       .maybeSingle();
 
@@ -57,7 +57,7 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
       // Super-Admin inspecting specific doctor queue
       const { data: targetDoc } = await supabaseAdmin
         .from('doctors')
-        .select('id, name, email, rmp_registration_number, clinic_id, department_id, role, must_change_password')
+        .select('id, name, email, rmp_registration_number, clinic_id, department_id, role')
         .eq('id', asDoctorId)
         .maybeSingle();
 
@@ -77,8 +77,12 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
 
       // Auto-heal ID mismatch if Auth ID differs from doctors table ID
       if (docData.id !== user.id) {
-        await supabaseAdmin.from('doctors').update({ id: user.id }).eq('id', docData.id);
-        doctorProfile.id = user.id;
+        try {
+          await supabaseAdmin.from('doctors').update({ id: user.id }).eq('id', docData.id);
+          doctorProfile.id = user.id;
+        } catch (e) {
+          console.warn('ID auto-heal notice:', e);
+        }
       }
 
       if (docData.clinic_id) {
@@ -129,7 +133,7 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
     .order('created_at', { ascending: false });
 
   if (doctorId && clinicId) {
-    query = query.or(`doctor_id.eq.${doctorId},and(clinic_id.eq.${clinicId},doctor_id.is.null)`);
+    query = query.or(`doctor_id.eq.${doctorId},clinic_id.eq.${clinicId}`);
   } else if (doctorId) {
     query = query.eq('doctor_id', doctorId);
   } else if (clinicId) {
