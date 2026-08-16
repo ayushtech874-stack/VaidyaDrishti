@@ -28,7 +28,22 @@ export default function DoctorLoginPage() {
         throw error;
       }
 
-      if (data?.user?.app_metadata?.role === 'super_admin') {
+      // Check role in user_metadata OR doctors table
+      let isSuperAdmin = data?.user?.user_metadata?.role === 'super_admin' || data?.user?.app_metadata?.role === 'super_admin';
+
+      if (!isSuperAdmin && data?.user?.id) {
+        const { data: doc } = await supabase
+          .from('doctors')
+          .select('role')
+          .eq('id', data.user.id)
+          .maybeSingle();
+
+        if (doc?.role === 'super_admin') {
+          isSuperAdmin = true;
+        }
+      }
+
+      if (isSuperAdmin) {
         router.push('/admin');
       } else {
         router.push('/doctor/dashboard');
@@ -48,7 +63,7 @@ export default function DoctorLoginPage() {
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-extrabold text-emerald-400">VaidyaDrishti</h1>
           <p className="text-sm text-slate-400">
-            Registered Medical Practitioner Portal Sign In
+            Registered Medical Practitioner & Super-Admin Portal Sign In
           </p>
         </div>
 
@@ -61,14 +76,14 @@ export default function DoctorLoginPage() {
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
-              Doctor Email
+              Email Address
             </label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="doctor@clinic.com"
+              placeholder="doctor@clinic.com or admin@vaidyadrishti.com"
               className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base"
             />
           </div>

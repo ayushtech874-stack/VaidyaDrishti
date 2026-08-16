@@ -10,11 +10,6 @@ export default async function SuperAdminDashboardPage() {
   const { data: clinics } = await supabase.from('clinics').select('*');
   const { data: doctors } = await supabase.from('doctors').select('*');
   const { data: intakes } = await supabase.from('intakes').select('id, urgency_level, status, created_at');
-  const { data: auditLogs } = await supabase
-    .from('audit_logs')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(10);
 
   const totalClinics = clinics?.length || 1;
   const totalDoctors = doctors?.length || 1;
@@ -27,18 +22,30 @@ export default async function SuperAdminDashboardPage() {
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">
-            VaidyaDrishti — Super-Admin Command Portal
+            👑 VaidyaDrishti — Super-Admin Command Portal
           </h2>
           <p className="text-sm text-slate-500">
-            Network-wide multi-tenant management, clinic provisioning, and compliance monitoring
+            Network-wide multi-tenant management, hospital onboarding, QR posters & directory control
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Link
-            href="/doctor/dashboard"
-            className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm"
+            href="/admin/onboarding"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
           >
-            👨‍⚕️ Switch to Doctor Dashboard
+            <span>➕ Onboard Facility & Doctor</span>
+          </Link>
+          <Link
+            href="/admin/qr-generator"
+            className="bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
+          >
+            <span>🖨️ QR Poster Generator</span>
+          </Link>
+          <Link
+            href="/directory"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
+          >
+            <span>🌐 Public Directory</span>
           </Link>
           <SignOutButton />
         </div>
@@ -48,10 +55,10 @@ export default async function SuperAdminDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm">
           <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-            Active Clinics
+            Active Facilities
           </span>
           <div className="text-3xl font-extrabold text-indigo-600">{totalClinics}</div>
-          <span className="text-xs text-slate-500">Registered Tenants</span>
+          <span className="text-xs text-slate-500">Registered Hospitals & OPDs</span>
         </div>
 
         <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm">
@@ -79,14 +86,50 @@ export default async function SuperAdminDashboardPage() {
         </div>
       </div>
 
-      {/* Empaneled RMP Doctors & Clinics Table */}
+      {/* Super-Admin Quick Action Toolbar */}
+      <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-2xl p-6 shadow-md space-y-3">
+        <h3 className="text-lg font-extrabold text-emerald-400 flex items-center gap-2">
+          <span>⚡</span> Super-Admin Command Actions
+        </h3>
+        <p className="text-xs text-slate-300">
+          Super-Admin command portal for managing hospitals, generating OPD posters, and approving public directory listings.
+        </p>
+        <div className="flex flex-wrap gap-3 pt-2">
+          <Link
+            href="/admin/onboarding"
+            className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold px-4 py-2.5 rounded-xl transition shadow"
+          >
+            ➕ Onboard New Hospital / OPD Clinic
+          </Link>
+          <Link
+            href="/admin/qr-generator"
+            className="bg-purple-600 hover:bg-purple-500 text-white text-xs font-extrabold px-4 py-2.5 rounded-xl transition shadow"
+          >
+            🖨️ Print OPD WhatsApp QR Posters
+          </Link>
+          <Link
+            href="/directory"
+            className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold px-4 py-2.5 rounded-xl transition shadow"
+          >
+            🌐 View / Manage Public Facility Directory
+          </Link>
+          <Link
+            href="/doctor/dashboard"
+            className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-700 transition"
+          >
+            👨‍⚕️ Preview Doctor Queue View
+          </Link>
+        </div>
+      </div>
+
+      {/* Empaneled RMP Doctors & Facilities Table */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            👨‍⚕️ Empaneled RMP Doctors & Clinic Assignments
+            👨‍⚕️ Empaneled RMP Doctors & Facilities
           </h3>
           <span className="text-xs bg-indigo-100 text-indigo-800 font-bold px-2.5 py-1 rounded-md">
-            Multi-Tenant Isolation Active
+            Multi-Tenant Network Active
           </span>
         </div>
 
@@ -98,8 +141,8 @@ export default async function SuperAdminDashboardPage() {
                   <th className="py-2.5 px-3">Doctor Name</th>
                   <th className="py-2.5 px-3">Email Account</th>
                   <th className="py-2.5 px-3">RMP Reg Number</th>
-                  <th className="py-2.5 px-3">Assigned Clinic ID</th>
-                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3">Role</th>
+                  <th className="py-2.5 px-3">Verification</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-mono">
@@ -107,11 +150,17 @@ export default async function SuperAdminDashboardPage() {
                   <tr key={doc.id} className="hover:bg-slate-50">
                     <td className="py-2.5 px-3 font-bold text-slate-900">{doc.name}</td>
                     <td className="py-2.5 px-3 text-slate-600">{doc.email}</td>
-                    <td className="py-2.5 px-3 text-indigo-600 font-semibold">{doc.rmp_registration_number || 'RMP-IND-2026-88'}</td>
-                    <td className="py-2.5 px-3 text-slate-500">{doc.clinic_id?.slice(0, 8) || 'PILOT_CLINIC_1'}...</td>
+                    <td className="py-2.5 px-3 text-indigo-600 font-semibold">{doc.rmp_registration_number || 'SUPER-ADMIN'}</td>
+                    <td className="py-2.5 px-3 text-slate-500 font-bold uppercase">{doc.role || 'doctor'}</td>
                     <td className="py-2.5 px-3">
-                      <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[10px]">
-                        ACTIVE RMP
+                      <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${
+                        doc.role === 'super_admin'
+                          ? 'bg-purple-100 text-purple-800'
+                          : doc.is_verified
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {doc.role === 'super_admin' ? '👑 SUPER ADMIN' : doc.is_verified ? '✅ VERIFIED' : '⏳ PENDING'}
                       </span>
                     </td>
                   </tr>
@@ -122,58 +171,6 @@ export default async function SuperAdminDashboardPage() {
         ) : (
           <p className="text-sm text-slate-500 italic">No doctors registered yet.</p>
         )}
-      </div>
-
-      {/* Network Audit Log Stream */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            📜 Recent Immutable ICMR Audit Stream
-          </h3>
-          <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-md">
-            Tamper-Evident Active
-          </span>
-        </div>
-
-        {auditLogs && auditLogs.length > 0 ? (
-          <div className="space-y-3 font-mono text-xs">
-            {auditLogs.map((log: any) => (
-              <div
-                key={log.id}
-                className="bg-slate-900 text-slate-200 p-3 rounded-xl flex flex-wrap items-center justify-between gap-2 border border-slate-800"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="bg-indigo-600 text-white px-2 py-0.5 rounded font-bold">
-                    {log.event_type}
-                  </span>
-                  <span className="text-slate-400">Actor: {log.actor}</span>
-                  <span className="text-slate-300">Intake: {log.intake_id?.slice(0, 8)}...</span>
-                </div>
-                <span className="text-slate-500">
-                  {new Date(log.created_at).toLocaleString()}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-slate-500 italic">No audit log entries recorded yet.</p>
-        )}
-      </div>
-
-      {/* Clinic Provisioning Guide */}
-      <div className="bg-slate-900 text-slate-100 rounded-2xl p-6 shadow-sm space-y-3 border border-slate-800">
-        <h3 className="text-lg font-bold text-emerald-400 flex items-center gap-2">
-          ⚡ 2-Minute Onboarding Protocol for New Private Clinics
-        </h3>
-        <p className="text-sm text-slate-300 leading-relaxed">
-          To onboard a new private clinic doctor onto VaidyaDrishti:
-        </p>
-        <ol className="list-decimal list-inside space-y-1.5 text-xs text-slate-300 font-mono">
-          <li>Create Doctor Auth user in Supabase Dashboard → Authentication → Add User.</li>
-          <li>Assign doctor to a new <code>clinic_id</code> in the <code>doctors</code> table.</li>
-          <li>Provide clinic with printable WhatsApp QR Code poster (e.g. <code>wa.me/91XXXXXXXXXX?text=JOIN_CLINIC_102</code>).</li>
-          <li>Doctor logs in at <code>http://localhost:3000/doctor/login</code> and starts receiving private patient intakes instantly!</li>
-        </ol>
       </div>
     </div>
   );
