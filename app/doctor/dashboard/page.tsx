@@ -31,30 +31,33 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
   let isSuperAdmin = false;
 
   if (user) {
-    // Check if user is super admin
-    const isSuperAdminMeta = user.user_metadata?.role === 'super_admin' || user.app_metadata?.role === 'super_admin';
+    const userEmailNorm = user.email?.toLowerCase().trim();
+    const isSuperAdminMeta =
+      user.user_metadata?.role === 'super_admin' ||
+      user.app_metadata?.role === 'super_admin' ||
+      userEmailNorm === 'admin@vaidyadrishti.com';
 
+    // 1. Robust Dual Lookup: Search doctor profile by ID OR by Email
     const { data: docData } = await supabaseAdmin
       .from('doctors')
       .select('id, name, email, rmp_registration_number, clinic_id, department_id, role, must_change_password')
-      .eq('id', user.id)
+      .or(`id.eq.${user.id}${userEmailNorm ? `,email.eq.${userEmailNorm}` : ''}`)
       .maybeSingle();
 
     if (docData?.role === 'super_admin' || isSuperAdminMeta) {
       isSuperAdmin = true;
     }
 
-    // 1. ROLE SEPARATION & ROUTING (Item 1)
-    // Super-Admin account MUST NEVER land on /doctor/dashboard by default unless explicitly inspecting a doctor queue via as_doctor_id
+    // Role Separation Guard: Super-Admin logins route directly to /admin unless in inspection mode
     if (isSuperAdmin && !asDoctorId) {
       redirect('/admin');
     }
 
     if (asDoctorId) {
-      // Super-Admin viewing as specific doctor
+      // Super-Admin inspecting specific doctor queue
       const { data: targetDoc } = await supabaseAdmin
         .from('doctors')
-        .select('id, name, email, rmp_registration_number, clinic_id, department_id, role')
+        .select('id, name, email, rmp_registration_number, clinic_id, department_id, role, must_change_password')
         .eq('id', asDoctorId)
         .maybeSingle();
 
@@ -71,6 +74,13 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
       }
     } else if (docData) {
       doctorProfile = docData;
+
+      // Auto-heal ID mismatch if Auth ID differs from doctors table ID
+      if (docData.id !== user.id) {
+        await supabaseAdmin.from('doctors').update({ id: user.id }).eq('id', docData.id);
+        doctorProfile.id = user.id;
+      }
+
       if (docData.clinic_id) {
         const { data: clinicData } = await supabaseAdmin
           .from('clinics')
@@ -85,8 +95,7 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
   const doctorDisplayName = doctorProfile?.name || user?.email || 'On-Duty RMP Doctor';
   const doctorRmpNo = doctorProfile?.rmp_registration_number || 'VERIFIED-RMP';
 
-  // 2. ITEM 2: FIX PLACEHOLDER TEXT INTERPOLATION
-  // Show exact clinic name, or explicit honest text "No clinic assigned to this account"
+  // Fix Placeholder Text Interpolation: Exact clinic name or honest explicit message
   const clinicDisplayName = clinicProfile?.name
     ? `Clinic Queue: ${clinicProfile.name}`
     : 'No clinic assigned to this account';
@@ -94,9 +103,9 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
   const clinicId = doctorProfile?.clinic_id;
   const doctorId = doctorProfile?.id;
 
-  // 3. ITEM 3: STRICT DOCTOR QUEUE FILTERING & UNLINKED ACCOUNT CHECK
   const isUnlinkedAccount = !clinicId && !doctorId;
 
+  // 2. BULLETPROOF QUEUE QUERY: Matches direct doctor_id OR clinic_id unassigned intakes!
   let query = supabaseAdmin
     .from('intakes')
     .select(`
@@ -119,7 +128,9 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
     `)
     .order('created_at', { ascending: false });
 
-  if (doctorId) {
+  if (doctorId && clinicId) {
+    query = query.or(`doctor_id.eq.${doctorId},and(clinic_id.eq.${clinicId},doctor_id.is.null)`);
+  } else if (doctorId) {
     query = query.eq('doctor_id', doctorId);
   } else if (clinicId) {
     query = query.eq('clinic_id', clinicId);
@@ -152,7 +163,9 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
         `)
         .order('created_at', { ascending: false });
 
-      if (doctorId) {
+      if (doctorId && clinicId) {
+        fallbackQuery = fallbackQuery.or(`doctor_id.eq.${doctorId},clinic_id.eq.${clinicId}`);
+      } else if (doctorId) {
         fallbackQuery = fallbackQuery.eq('doctor_id', doctorId);
       } else if (clinicId) {
         fallbackQuery = fallbackQuery.eq('clinic_id', clinicId);
