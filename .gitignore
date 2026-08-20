@@ -40,6 +40,9 @@ yarn-error.log*
 Operating_VaidyaDrishti.html
 VaidyaDrishti-Management.html
 Database_Schema.html
+FLOW.md
+PRD.md
+
 # Scripts & Local Inspection
 scripts/inspect_db.ts
 *.ts.scratch
