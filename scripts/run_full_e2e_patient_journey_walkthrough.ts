@@ -83,6 +83,15 @@ async function runFullE2EPatientJourneyWalkthrough() {
 
     console.log(`  └─ Intake Submitted: ID ${intake1.id} | Urgency: HIGH ✅`);
 
+    // Verify intake appears in Doctor's OPD Queue
+    const { data: docQueueIntake } = await supabase
+      .from('intakes')
+      .select('id, urgency_level, status')
+      .eq('id', intake1.id)
+      .single();
+
+    console.log(`  └─ Verified in Doctor OPD Queue: ID ${docQueueIntake?.id} | Flagged Urgency: ${docQueueIntake?.urgency_level} ✅`);
+
     // -------------------------------------------------------------------------
     // STEP 2: CLAIM DASHBOARD ACCOUNT (HMAC TOKEN)
     // -------------------------------------------------------------------------
@@ -179,7 +188,7 @@ async function runFullE2EPatientJourneyWalkthrough() {
     // -------------------------------------------------------------------------
     console.log('\n📍 STEP 5: E-Prescription Issuance & TPG 2020 Drug Blocklist Guard');
     const blocklistCheck = checkDrugBlocklist('Alprazolam 0.5mg');
-    console.log(`  └─ Schedule X Blocklist Test (Alprazolam): Blocked = ${blocklistCheck.isBlocked} | Warning: ${blocklistCheck.warning?.slice(0, 55)}...`);
+    console.log(`  └─ Schedule X Blocklist Test (Alprazolam): Blocked = ${blocklistCheck.isBlocked} | Category: ${blocklistCheck.category}`);
 
     const rx = await withRetry(async () => {
       const { data, error } = await supabase
@@ -222,7 +231,30 @@ async function runFullE2EPatientJourneyWalkthrough() {
     // -------------------------------------------------------------------------
     // STEP 6: APPOINTMENT BOOKING & CARE REMINDERS
     // -------------------------------------------------------------------------
-    console.log('\n📍 STEP 6: Appointment Follow-up & Care Reminders');
+    console.log('\n📍 STEP 6: Appointment Follow-up Booking & Care Reminders');
+    const appointmentTime = new Date(Date.now() + 86400000 * 2).toISOString(); // 2 days from now
+
+    const appt = await withRetry(async () => {
+      const { data, error } = await supabase
+        .from('appointments')
+        .insert([
+          {
+            patient_id: patient.id,
+            doctor_id: hospitalRes.doctorId,
+            scheduled_at: appointmentTime,
+            duration_minutes: 30,
+            status: 'completed',
+            notes: 'Follow-up consultation for knee stiffness',
+          },
+        ])
+        .select('*')
+        .single();
+      if (error || !data) throw error;
+      return data;
+    });
+
+    console.log(`  └─ Booked Follow-up Appointment: ID ${appt.id} scheduled at ${appt.scheduled_at} ✅`);
+
     const medAlarms = computeMedicineReminders({
       patient_id: patient.id,
       prescription_id: rx.id,
@@ -235,8 +267,8 @@ async function runFullE2EPatientJourneyWalkthrough() {
 
     const apptAlarms = computeAppointmentReminders({
       patient_id: patient.id,
-      appointment_id: 'walkthrough-appt-001',
-      appointment_time: new Date(Date.now() + 86400000).toISOString(),
+      appointment_id: appt.id,
+      appointment_time: appt.scheduled_at,
     });
 
     console.log(`  └─ Generated ${medAlarms.length} Medicine Reminders & ${apptAlarms.length} Appointment Alarms ✅`);
@@ -257,11 +289,19 @@ async function runFullE2EPatientJourneyWalkthrough() {
       return data;
     });
 
+    const patientAppts = await withRetry(async () => {
+      const { data, error } = await supabase.from('appointments').select('id, status').eq('patient_id', patient.id);
+      if (error) throw error;
+      return data;
+    });
+
     console.log(`  └─ Care Timeline Summary for ${patient.name}:`);
     console.log(`      • Total Intakes Across Facilities: ${patientIntakes?.length}`);
     console.log(`      • Active E-Prescriptions: ${patientRxs?.length}`);
+    console.log(`      • Confirmed Appointments: ${patientAppts?.length}`);
 
     // Cleanup journey test data
+    await supabase.from('appointments').delete().eq('id', appt.id);
     await supabase.auth.admin.deleteUser(authUser.id);
     await supabase.from('patients').delete().eq('id', patient.id);
 

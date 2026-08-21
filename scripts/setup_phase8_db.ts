@@ -8,11 +8,28 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function inspectPrescriptionItemsKeys() {
-  const { data } = await supabase.from('prescription_items').select('*').limit(1);
-  if (data && data[0]) {
-    console.log('Prescription Items Table Keys:', Object.keys(data[0]));
+async function inspectAppointmentStatusConstraint() {
+  const { data, error } = await supabase.from('appointments').select('*').limit(1);
+  console.log('Sample Appointment Row:', data);
+  // Try inserting sample row to test valid status values
+  const statuses = ['pending', 'scheduled', 'confirmed', 'completed', 'cancelled'];
+  for (const s of statuses) {
+    const { error: err } = await supabase.from('appointments').insert([
+      {
+        doctor_id: '7d7b555e-01e0-4a56-9992-48f914b21b2e',
+        patient_id: '00000000-0000-0000-0000-000000000001',
+        scheduled_at: new Date().toISOString(),
+        status: s,
+      },
+    ]);
+    if (!err) {
+      console.log('VALID STATUS FOUND:', s);
+      await supabase.from('appointments').delete().eq('status', s);
+      break;
+    } else {
+      console.log('Invalid status:', s, err.message);
+    }
   }
 }
 
-inspectPrescriptionItemsKeys();
+inspectAppointmentStatusConstraint();
