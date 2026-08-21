@@ -193,6 +193,12 @@ export default function PatientDashboardClientView({
 
           <div className="flex items-center gap-3">
             <Link
+              href="/patient/dashboard/appointments"
+              className="bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
+            >
+              📅 Appointments
+            </Link>
+            <Link
               href="/patient/dashboard/prescriptions"
               className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
             >
