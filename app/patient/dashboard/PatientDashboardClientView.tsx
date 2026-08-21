@@ -193,6 +193,12 @@ export default function PatientDashboardClientView({
 
           <div className="flex items-center gap-3">
             <Link
+              href="/patient/dashboard/reminders"
+              className="bg-amber-600 hover:bg-amber-700 text-slate-950 font-extrabold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
+            >
+              🔔 Care Reminders
+            </Link>
+            <Link
               href="/patient/dashboard/appointments"
               className="bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
             >
