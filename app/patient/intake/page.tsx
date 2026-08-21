@@ -158,6 +158,16 @@ export default function PatientIntakePage() {
           </form>
         )}
 
+        {/* DPDP Act 2023 Care Continuity Disclosure */}
+        <div className="bg-[var(--color-blue-soft)] border border-[var(--color-blue)]/30 text-[var(--color-navy)] rounded-2xl p-4 text-xs space-y-1 text-center font-medium">
+          <p className="font-bold">
+            🛡️ Privacy & Care Continuity Notice (DPDP Act 2023)
+          </p>
+          <p className="text-[11px] leading-relaxed text-[var(--color-ink-muted)]">
+            By submitting this intake, you agree that your visit history, prescriptions, and health records may be visible to other VaidyaDrishti doctors you consult across network facilities, to support continuity of care.
+          </p>
+        </div>
+
         {/* Legal & Emergency Disclaimer Footer */}
         <div className="bg-[var(--color-urgent-high-bg)] border border-[var(--color-urgent-high)] text-[var(--color-urgent-high)] rounded-2xl p-4 text-xs space-y-1 text-center font-medium">
           <p className="font-bold">

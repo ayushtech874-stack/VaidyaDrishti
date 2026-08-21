@@ -306,12 +306,12 @@ export async function POST(request: Request) {
         const docTitle = scannedDoctor?.name ? ` (${scannedDoctor.name})` : '';
         return new Response(
           createTwiMLResponse(
-            `Welcome to ${scannedClinic.name}! 🏥${docTitle}\n\nWhat's the patient's name?`
+            `Welcome to ${scannedClinic.name}! 🏥${docTitle}\n\n🛡️ *Privacy & Care Continuity Notice (DPDP Act 2023):*\nBy continuing, your visit history & records may be visible to VaidyaDrishti doctors you consult across network facilities to support continuity of care.\n\nWhat's the patient's name?`
           ),
           { headers: { 'Content-Type': 'text/xml' } }
         );
       } else {
-        let menuMsg = `Welcome to VaidyaDrishti Tele-Triage Portal! 🏥\n\nPlease select your Consulting Hospital / Doctor:\n\n`;
+        let menuMsg = `Welcome to VaidyaDrishti Tele-Triage Portal! 🏥\n\n🛡️ *Privacy & Care Continuity Notice (DPDP Act 2023):*\nBy continuing, your visit history & records may be visible to VaidyaDrishti doctors you consult across network facilities to support continuity of care.\n\nPlease select your Consulting Hospital / Doctor:\n\n`;
         clinicList.forEach((clinic: any, idx: number) => {
           const doc = doctorList.find((d: any) => d.clinic_id === clinic.id);
           menuMsg += `${idx + 1}️⃣ ${clinic.name} ${doc?.name ? `— Dr. ${doc.name}` : ''}\n`;
