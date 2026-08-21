@@ -8,11 +8,11 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function inspectDoctorKeys() {
-  const { data } = await supabase.from('doctors').select('*').limit(1);
-  if (data && data[0]) {
-    console.log('Doctors Table Keys:', Object.keys(data[0]));
-  }
+async function inspectDepartmentsAndDoctors() {
+  const { data: depts } = await supabase.from('departments').select('*');
+  const { data: docs } = await supabase.from('doctors').select('id, name, clinic_id, department_id');
+  console.log('Departments:', depts);
+  console.log('Doctors:', docs);
 }
 
-inspectDoctorKeys();
+inspectDepartmentsAndDoctors();

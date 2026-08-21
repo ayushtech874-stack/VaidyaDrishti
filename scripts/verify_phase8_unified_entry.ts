@@ -131,22 +131,35 @@ async function verifyPhase8UnifiedEntry() {
     console.log('✅ PASS: Gracefully redirects patient to login without erroring or overwriting!');
 
     // =========================================================================
-    // TEST STEP 5: DASHBOARD NEW CONSULTATION & HOSPITAL CATEGORY ROUTING
+    // TEST STEP 5: DASHBOARD NEW CONSULTATION & GENUINE HOSPITAL DEPARTMENT ROUTING
     // =========================================================================
     console.log('\n--- 5. Testing Dashboard New Consultation & Shared Doctor Resolver ---');
-    // A. Direct Clinic Resolution Test
+    
+    // 5A. Direct Clinic Resolution Test (Single-Doctor Private Practice)
     const clinicResolverRes = await resolveDoctorForFacility({ clinicId: clinic!.id });
     console.log('5A. Direct Clinic Resolution:', clinicResolverRes.facilityName, '-> Dr.', clinicResolverRes.doctorName, `(Source: ${clinicResolverRes.resolutionSource})`);
+    if (clinicResolverRes.resolutionSource !== 'direct_clinic') throw new Error('Expected direct_clinic source');
 
-    // B. Hospital Category Resolution Test (Healing Touch Hospital / JNLMCH)
-    const { data: hospital } = await supabase.from('clinics').select('id, name, code').eq('id', '00000000-0000-0000-0000-000000000022').single();
-    if (hospital) {
-      const hospResolverRes = await resolveDoctorForFacility({ clinicId: hospital.id, problemCategory: 'Heart/chest/breathing' });
-      console.log('5B. Hospital Category Resolution:', hospResolverRes.facilityName, '-> Dr.', hospResolverRes.doctorName, `(Source: hospResolverRes.resolutionSource)`);
-    }
+    // 5B. Genuine Hospital Department Resolution Test (Healing Touch Hospital -> General Medicine department match)
+    const hospResolverRes = await resolveDoctorForFacility({ 
+      clinicId: '00000000-0000-0000-0000-000000000022', 
+      problemCategory: 'General Medicine' 
+    });
+    console.log('5B. Hospital Category Resolution:', hospResolverRes.facilityName, '-> Dr.', hospResolverRes.doctorName, `(Source: ${hospResolverRes.resolutionSource})`);
+    if (hospResolverRes.resolutionSource !== 'department_match') throw new Error(`Expected department_match source, got ${hospResolverRes.resolutionSource}`);
+    console.log('✅ PASS: Genuine hospital department category matching verified!');
 
-    // C. Mandatory Consent Gate Test
-    console.log('5C. Testing Mandatory Consent Checkbox Gate:');
+    // 5C. Hospital Department Resolution Test (JLN Medical College -> Orthopedics department match)
+    const jlnmchRes = await resolveDoctorForFacility({ 
+      clinicId: '00000000-0000-0000-0000-000000000011', 
+      problemCategory: 'Bones/joints/injury' 
+    });
+    console.log('5C. Hospital Category Resolution (JLN Medical College):', jlnmchRes.facilityName, '-> Dr.', jlnmchRes.doctorName, `(Source: ${jlnmchRes.resolutionSource})`);
+    if (jlnmchRes.resolutionSource !== 'department_match') throw new Error(`Expected department_match source, got ${jlnmchRes.resolutionSource}`);
+    console.log('✅ PASS: JLN Medical College Orthopedics department matching verified!');
+
+    // 5D. Mandatory Consent Gate Test
+    console.log('5D. Testing Mandatory Consent Checkbox Gate:');
     let consentGateBlocked = false;
     function attemptSubmitWithoutConsent(hasConsent: boolean) {
       if (!hasConsent) {

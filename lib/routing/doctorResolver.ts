@@ -21,6 +21,14 @@ export interface ResolveDoctorResult {
   resolutionSource: 'direct_clinic' | 'department_match' | 'general_triage_fallback';
 }
 
+const CATEGORY_MAP: Record<string, string[]> = {
+  'heart/chest/breathing': ['cardio', 'chest', 'pulmo', 'cardiology'],
+  'bones/joints/injury': ['ortho', 'bones', 'joints', 'orthopedics'],
+  'fever/cold/general': ['general', 'medicine', 'fever', 'genmed'],
+  'general medicine': ['general', 'medicine', 'genmed'],
+  'pediatrics': ['pedia', 'child', 'pediatrics'],
+};
+
 /**
  * Shared facility & doctor resolution logic for WhatsApp webhook & Patient Dashboard.
  */
@@ -39,21 +47,21 @@ export async function resolveDoctorForFacility(input: ResolveDoctorInput): Promi
     throw new Error(`Consulting facility not found (ID: ${clinicId}).`);
   }
 
-  // 2. Fetch Doctors associated with facility
+  // 2. Fetch Doctors associated with facility & their department info
   const { data: doctors, error: docErr } = await supabaseAdmin
     .from('doctors')
-    .select('id, name, clinic_id, department_id')
+    .select('id, name, clinic_id, department_id, departments(id, name, code)')
     .eq('clinic_id', clinicId);
 
   if (docErr || !doctors || doctors.length === 0) {
     throw new Error(`No empaneled doctors available at ${clinic.name}.`);
   }
 
-  const isHospital = clinic.code?.toUpperCase().includes('HOSP') || doctors.length > 1;
+  const isHospital = (clinic.code || '').toUpperCase().includes('HOSP') || clinic.name.toLowerCase().includes('hospital');
   const facilityType = isHospital ? 'hospital' : 'clinic';
 
-  // CASE A: Clinic (Private Practice / Single Facility)
-  if (!isHospital || doctors.length === 1) {
+  // CASE A: Pure Private Clinic (Non-Hospital with single doctor)
+  if (!isHospital && doctors.length === 1) {
     const doc = doctors[0];
     return {
       clinicId: clinic.id,
@@ -66,14 +74,15 @@ export async function resolveDoctorForFacility(input: ResolveDoctorInput): Promi
     };
   }
 
-  // CASE B: Hospital with multiple departments / categories
+  // CASE B: Hospital with Department Routing
   if (problemCategory) {
-    const categoryLower = problemCategory.toLowerCase().trim();
+    const catLower = problemCategory.toLowerCase().trim();
+    const keywords = CATEGORY_MAP[catLower] || [catLower];
 
-    // Try matching doctor by department category or name
     const matchedDoctor = doctors.find((d: any) => {
-      const deptName = (d.name || '').toLowerCase();
-      return deptName.includes(categoryLower);
+      const deptName = (d.departments?.name || '').toLowerCase();
+      const deptCode = (d.departments?.code || '').toLowerCase();
+      return keywords.some((kw) => deptName.includes(kw) || deptCode.includes(kw) || kw.includes(deptName));
     });
 
     if (matchedDoctor) {
@@ -89,7 +98,7 @@ export async function resolveDoctorForFacility(input: ResolveDoctorInput): Promi
     }
   }
 
-  // Fallback: Use first empaneled doctor
+  // Fallback: General Triage Fallback for Hospital
   const fallbackDoc = doctors[0];
   return {
     clinicId: clinic.id,
