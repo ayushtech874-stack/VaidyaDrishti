@@ -165,6 +165,12 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Link
+            href="/doctor/messages"
+            className="bg-[var(--color-navy)] hover:opacity-90 text-white border border-[var(--color-border)] text-xs font-bold px-3.5 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm"
+          >
+            <span>💬 Patient Messages</span>
+          </Link>
+          <Link
             href="/doctor/analytics"
             className="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-xs font-bold px-3 py-1.5 rounded-lg transition"
           >
