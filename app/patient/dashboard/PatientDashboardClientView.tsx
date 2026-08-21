@@ -193,6 +193,12 @@ export default function PatientDashboardClientView({
 
           <div className="flex items-center gap-3">
             <Link
+              href="/patient/dashboard/prescriptions"
+              className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
+            >
+              💊 E-Prescriptions
+            </Link>
+            <Link
               href="/patient/dashboard/messages"
               className="bg-[var(--color-navy)] hover:bg-[var(--color-navy)]/90 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm border border-white/20 flex items-center gap-1.5"
             >
