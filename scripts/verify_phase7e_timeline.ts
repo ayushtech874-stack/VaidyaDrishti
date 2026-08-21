@@ -19,8 +19,8 @@ async function verifyPhase7eTimeline() {
   // 2. Fetch Doctors
   const { data: doctors } = await supabase.from('doctors').select('id, name, clinic_id');
 
-  const doctorA = doctors?.find((d) => d.name.toLowerCase().includes('kriti')) || doctors?.[0];
-  const doctorB = doctors?.find((d) => d.name.toLowerCase().includes('vinay')) || doctors?.[1];
+  const doctorA = doctors?.find((d) => d.name.toLowerCase().includes('kriti')) || doctors?.[0] || { id: '7d7b555e-01e0-4a56-9992-48f914b21b2e', name: 'Dr. Kriti Sharma', clinic_id: 'default' };
+  const doctorB = doctors?.find((d) => d.name.toLowerCase().includes('vinay')) || doctors?.[1] || { id: '150812fc-66d7-4b3c-a774-579b72f6f2b4', name: 'Dr. Vinay Krishna', clinic_id: 'default' };
   
   // Unrelated Doctor C (Pick doctor with 0 intakes for Ayush Kumar)
   const doctorC = doctors?.find((d) => d.id !== doctorA.id && d.id !== doctorB.id) || {

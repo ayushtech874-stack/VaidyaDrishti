@@ -191,7 +191,13 @@ export default function PatientDashboardClientView({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/patient/dashboard/new-consultation"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition shadow-md flex items-center gap-1.5"
+            >
+              ➕ Start New Consultation
+            </Link>
             <Link
               href="/patient/dashboard/timeline"
               className="bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"

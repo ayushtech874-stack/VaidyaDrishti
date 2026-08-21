@@ -556,7 +556,7 @@ export async function POST(request: Request) {
         }
       }
 
-      // 12. Complete Session
+      // 12. Complete Session & WhatsApp Dashboard Claim Nudge
       await supabase
         .from('whatsapp_sessions')
         .update({
@@ -569,9 +569,37 @@ export async function POST(request: Request) {
         })
         .eq('phone', fromPhone);
 
+      // Check if patient already has a claimed dashboard account or received a nudge within 24h
+      let claimNudgeText = '';
+      const { data: currentPatient } = await supabase
+        .from('patients')
+        .select('id, auth_user_id, last_claim_nudge_sent_at')
+        .eq('id', patientId)
+        .single();
+
+      if (currentPatient && !currentPatient.auth_user_id) {
+        const lastNudgeTime = currentPatient.last_claim_nudge_sent_at ? new Date(currentPatient.last_claim_nudge_sent_at).getTime() : 0;
+        const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
+        if (nowMs - lastNudgeTime > TWENTY_FOUR_HOURS_MS) {
+          const { generateClaimToken } = await import('@/lib/auth/claimToken');
+          const claimTokenStr = generateClaimToken({ patientId: currentPatient.id, phone: fromPhone });
+          const origin = new URL(request.url).origin;
+          const claimUrl = `${origin}/patient/claim-account?token=${claimTokenStr}`;
+
+          claimNudgeText = `\n\n📲 *Want to track all your visits, prescriptions, and reminders in one place?*\nTap here to set up your VaidyaDrishti dashboard:\n${claimUrl}`;
+
+          // Update last_claim_nudge_sent_at
+          await supabase
+            .from('patients')
+            .update({ last_claim_nudge_sent_at: nowIso })
+            .eq('id', currentPatient.id);
+        }
+      }
+
       return new Response(
         createTwiMLResponse(
-          `Thank you, ${draft.name || 'patient'}! ✅ Your intake has been submitted to your consulting doctor's queue.\n\n🔄 To start a new intake or consult another doctor, reply "NEW" or scan a clinic QR code!`
+          `Thank you, ${draft.name || 'patient'}! ✅ Your intake has been submitted to your consulting doctor's queue.${claimNudgeText}\n\n🔄 To start a new intake or consult another doctor, reply "NEW" or scan a clinic QR code!`
         ),
         { headers: { 'Content-Type': 'text/xml' } }
       );

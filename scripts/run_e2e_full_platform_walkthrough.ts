@@ -151,6 +151,7 @@ async function runFullPlatformE2EWalkthrough() {
     dosage: '500 mg',
     frequency: 'Twice daily',
     duration_days: 5,
+    issued_at: new Date().toISOString(),
   });
 
   const apptAlarms = computeAppointmentReminders({

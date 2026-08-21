@@ -67,6 +67,23 @@ export default function PatientIntakePage() {
             <p className="text-sm text-[var(--color-ink-muted)] leading-relaxed">
               Your symptoms have been analyzed by VaidyaDrishti AI Triage and sent directly to the RMP Doctor&apos;s active OPD queue.
             </p>
+
+            {/* Dashboard Account Claim Prompt */}
+            <div className="bg-[var(--color-blue-soft)] border border-[var(--color-blue)]/30 p-4 rounded-xl space-y-2 text-left">
+              <span className="text-xs font-bold text-[var(--color-navy)] block">
+                📲 Want to track this visit, prescriptions & reminders long-term?
+              </span>
+              <p className="text-[11px] text-[var(--color-ink-muted)] leading-relaxed">
+                Create your VaidyaDrishti patient dashboard account to message your doctor, view e-prescriptions, and manage appointments.
+              </p>
+              <Link
+                href="/patient/signup"
+                className="inline-block text-xs font-extrabold text-[var(--color-blue)] hover:underline pt-1"
+              >
+                Create Free Patient Dashboard Account →
+              </Link>
+            </div>
+
             <button
               onClick={() => {
                 setSubmittedSuccess(false);
