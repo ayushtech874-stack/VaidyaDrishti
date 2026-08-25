@@ -1,0 +1,68 @@
+{
+  "common": {
+    "appName": "VaidyaDrishti",
+    "tagline": "AI-Powered Tele-Triage & OPD Booking Network",
+    "language": "English",
+    "switchLanguage": "हिंदी",
+    "back": "Back",
+    "save": "Save",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "submit": "Submit",
+    "search": "Search",
+    "viewAll": "View All"
+  },
+  "nav": {
+    "directory": "Doctor Directory",
+    "findDoctor": "Find a Doctor",
+    "bookOpd": "Book OPD",
+    "patientDashboard": "Patient Dashboard",
+    "doctorLogin": "Doctor Portal",
+    "registerDoctor": "Register as Doctor",
+    "logout": "Log Out"
+  },
+  "directory": {
+    "title": "Find Verified Doctors & Clinics Near You",
+    "subtitle": "Discover registered RMP doctors and accredited healthcare facilities in your city.",
+    "selectCity": "Select City",
+    "allCities": "All Cities",
+    "allCategories": "All Specialties",
+    "searchPlaceholder": "Search doctor name, specialty, or clinic...",
+    "verifiedDoc": "Verified RMP Doctor",
+    "liveFacility": "Live OPD Facility",
+    "consultWeb": "Send Grievance via Website",
+    "consultWhatsapp": "Message on WhatsApp",
+    "noDoctors": "No verified doctors found in this city yet."
+  },
+  "intake": {
+    "title": "Patient Symptom Intake",
+    "subtitle": "Submit your health symptoms for prompt review by consulting doctors.",
+    "patientName": "Patient Full Name",
+    "age": "Age (Years)",
+    "gender": "Sex / Gender",
+    "selectClinic": "Select Consulting Hospital / Clinic",
+    "describeSymptoms": "Describe your health concerns or symptoms in detail",
+    "privacyNotice": "Privacy & Care Continuity Notice (DPDP Act 2023)",
+    "dpdpConsent": "By submitting your medical symptoms to VaidyaDrishti, you consent to sharing your intake data and health records with your consulting RMP doctor and other VaidyaDrishti healthcare providers you consult, to support continuity of care under the Digital Personal Data Protection Act (DPDP Act 2023).",
+    "submitBtn": "Submit Intake →",
+    "submitting": "Structuring Intake...",
+    "successTitle": "Intake Submitted Successfully",
+    "successDesc": "Your health summary has been structured and queued for doctor review."
+  },
+  "dashboard": {
+    "welcome": "Welcome back",
+    "viewingProfile": "Viewing Profile",
+    "addFamilyMember": "+ Add Family Member",
+    "recentIntakes": "Recent Health Intakes",
+    "prescriptions": "E-Prescriptions",
+    "appointments": "OPD Appointments",
+    "reminders": "Care & Medicine Alarms",
+    "noIntakes": "No past consultation intakes found."
+  },
+  "severity": {
+    "high": "Your case has been marked for prompt doctor review. Please stay close to your phone.",
+    "medium": "Your consultation request is in queue for review during standard OPD hours.",
+    "low": "Routine consultation registered. Your doctor will review your history shortly.",
+    "emergency": "CRITICAL EMERGENCY: Please visit the nearest hospital emergency room immediately."
+  }
+}

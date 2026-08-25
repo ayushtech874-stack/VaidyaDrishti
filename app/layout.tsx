@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope, Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
+import { LanguageProvider } from "@/lib/i18n/context";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -90,7 +91,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${manrope.variable} ${inter.variable} ${ibmPlexMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans bg-[var(--color-cream)] text-[var(--color-ink)] selection:bg-[var(--color-blue-soft)] selection:text-[var(--color-navy)]">
-        {children}
+        <LanguageProvider>
+          {children}
+        </LanguageProvider>
       </body>
     </html>
   );
