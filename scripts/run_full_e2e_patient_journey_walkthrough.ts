@@ -188,7 +188,7 @@ async function runFullE2EPatientJourneyWalkthrough() {
     // -------------------------------------------------------------------------
     console.log('\n📍 STEP 5: E-Prescription Issuance & TPG 2020 Drug Blocklist Guard');
     const blocklistCheck = checkDrugBlocklist('Alprazolam 0.5mg');
-    console.log(`  └─ Schedule X Blocklist Test (Alprazolam): Blocked = ${blocklistCheck.isBlocked} | Category: ${blocklistCheck.category}`);
+    console.log(`  └─ Schedule X Blocklist Test (Alprazolam): Blocked = ${blocklistCheck.blocked} | Message: ${blocklistCheck.message}`);
 
     const rx = await withRetry(async () => {
       const { data, error } = await supabase
@@ -268,7 +268,7 @@ async function runFullE2EPatientJourneyWalkthrough() {
     const apptAlarms = computeAppointmentReminders({
       patient_id: patient.id,
       appointment_id: appt.id,
-      appointment_time: appt.scheduled_at,
+      scheduled_at: appt.scheduled_at,
     });
 
     console.log(`  └─ Generated ${medAlarms.length} Medicine Reminders & ${apptAlarms.length} Appointment Alarms ✅`);

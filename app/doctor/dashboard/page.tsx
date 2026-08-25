@@ -40,7 +40,7 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
     // 1. Resilient Dual Lookup: Search doctor profile by ID OR by Email
     const { data: docData } = await supabaseAdmin
       .from('doctors')
-      .select('id, name, email, rmp_registration_number, clinic_id, department_id, role')
+      .select('id, name, email, rmp_registration_number, clinic_id, department_id, role, registration_status, rejection_reason')
       .or(`id.eq.${user.id}${userEmailNorm ? `,email.eq.${userEmailNorm}` : ''}`)
       .maybeSingle();
 
@@ -57,7 +57,7 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
       // Super-Admin inspecting specific doctor queue
       const { data: targetDoc } = await supabaseAdmin
         .from('doctors')
-        .select('id, name, email, rmp_registration_number, clinic_id, department_id, role')
+        .select('id, name, email, rmp_registration_number, clinic_id, department_id, role, registration_status, rejection_reason')
         .eq('id', asDoctorId)
         .maybeSingle();
 
@@ -84,6 +84,36 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
         clinicProfile = clinicData;
       }
     }
+  }
+
+  // 🛑 PHASE 9a GUARD: Pending or Rejected Doctors cannot access active OPD queue
+  if (doctorProfile && doctorProfile.registration_status && doctorProfile.registration_status !== 'approved' && !isSuperAdmin) {
+    const isPending = doctorProfile.registration_status === 'pending';
+    return (
+      <main className="min-h-screen bg-[var(--color-cream-soft)] py-12 px-4 flex items-center justify-center">
+        <div className="max-w-md w-full card-surface p-8 text-center space-y-6 shadow-xl border border-[var(--color-border)]">
+          <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center bg-amber-100 text-amber-800 text-2xl font-bold">
+            {isPending ? '⏳' : '❌'}
+          </div>
+          <div>
+            <span className="inline-block text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded bg-amber-100 text-amber-900 font-bold mb-2">
+              REGISTRATION STATUS: {doctorProfile.registration_status.toUpperCase()}
+            </span>
+            <h1 className="text-xl font-extrabold text-[var(--color-navy)]">
+              {isPending ? 'Registration Under Review' : 'Registration Application Rejected'}
+            </h1>
+            <p className="text-xs text-[var(--color-ink-muted)] mt-2 leading-relaxed">
+              {isPending
+                ? 'Your doctor registration application and RMP credentials are currently being reviewed by VaidyaDrishti administration. Access to OPD clinical queues will be enabled once approved.'
+                : doctorProfile.rejection_reason || 'Your application was rejected by administration.'}
+            </p>
+          </div>
+          <div className="pt-4 border-t flex justify-center space-x-3">
+            <SignOutButton />
+          </div>
+        </div>
+      </main>
+    );
   }
 
   const doctorDisplayName = doctorProfile?.name || user?.email || 'On-Duty RMP Doctor';
