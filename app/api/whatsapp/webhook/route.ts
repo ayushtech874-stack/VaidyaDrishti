@@ -362,6 +362,39 @@ export async function POST(request: Request) {
         const selectedClinic = clinicList[choiceNum - 1];
         const assignedDoc = doctorList.find((d: any) => d.clinic_id === selectedClinic.id);
 
+        // Check for multiple family profiles under this phone number
+        const { data: familyProfiles } = await supabase
+          .from('patients')
+          .select('id, name, age, gender, relationship')
+          .eq('phone', fromPhone);
+
+        if (familyProfiles && familyProfiles.length > 1) {
+          draft.family_profiles = familyProfiles;
+          await supabase
+            .from('whatsapp_sessions')
+            .update({
+              clinic_id: selectedClinic.id,
+              temp_clinic_id: selectedClinic.id,
+              doctor_id: assignedDoc?.id || null,
+              current_step: 'awaiting_family_profile_selection',
+              state: 'awaiting_family_profile_selection',
+              draft_data: draft,
+              last_message_at: nowIso,
+              updated_at: nowIso,
+            })
+            .eq('phone', fromPhone);
+
+          let menu = `Selected: ${selectedClinic.name} 🏥\n\nWho is this consultation for?\n\n`;
+          familyProfiles.forEach((fp: any, idx: number) => {
+            menu += `${idx + 1}️⃣ ${fp.name} (${fp.relationship || 'family'})\n`;
+          });
+          menu += `${familyProfiles.length + 1}️⃣ ➕ Add New Family Member\n\nReply with number (e.g. 1 or 2):`;
+
+          return new Response(createTwiMLResponse(menu), {
+            headers: { 'Content-Type': 'text/xml' },
+          });
+        }
+
         await supabase
           .from('whatsapp_sessions')
           .update({
@@ -390,6 +423,36 @@ export async function POST(request: Request) {
         return new Response(createTwiMLResponse(menuMsg), {
           headers: { 'Content-Type': 'text/xml' },
         });
+      }
+    }
+
+    // STEP: awaiting_family_profile_selection
+    if (currentStep === 'awaiting_family_profile_selection') {
+      const choiceNum = parseInt(bodyText.trim(), 10);
+      const familyProfiles: any[] = draft.family_profiles || [];
+
+      if (!isNaN(choiceNum) && choiceNum >= 1 && choiceNum <= familyProfiles.length) {
+        const selectedProfile = familyProfiles[choiceNum - 1];
+        draft.selected_patient_id = selectedProfile.id;
+        draft.name = selectedProfile.name;
+        draft.age = selectedProfile.age;
+        draft.gender = selectedProfile.gender || 'Male';
+
+        await updateSessionStep('awaiting_symptoms', draft);
+
+        return new Response(
+          createTwiMLResponse(
+            `Selected profile: ${selectedProfile.name} 👤\n\nPlease describe the symptoms — you can type or send a voice note`
+          ),
+          { headers: { 'Content-Type': 'text/xml' } }
+        );
+      } else {
+        // Fallback or "+ Add New Family Member"
+        await updateSessionStep('awaiting_name', draft);
+        return new Response(
+          createTwiMLResponse(`Registering new family member! 👤\n\nWhat's the patient's name?`),
+          { headers: { 'Content-Type': 'text/xml' } }
+        );
       }
     }
 
