@@ -187,50 +187,61 @@ async function verifyPhase9bFamilyProfiles() {
     console.log('  └─ TEST 2 PASSED: 100% Strict Cross-Account RLS Isolation Confirmed (0 rows leaked)! ✅\n');
 
     // -------------------------------------------------------------------------
-    // TEST 3: Phone Claim Safety & Collision Prevention Check
+    // TEST 3: Scoped Unique Index & Phone Sharing Verification
     // -------------------------------------------------------------------------
-    console.log('📍 TEST 3: Phone Claim Safety & Identity Collision Check');
+    console.log('📍 TEST 3: Scoped Unique Primary Phone Index & Managed Family Sharing Proof');
 
-    // Create an unclaimed patient intake for phone sharedPhone
-    const { data: unclaimedPatient, error: pUnclaimedErr } = await supabase
+    // 1. Verify DB constraint blocks an unrelated primary patient from taking Account A's phone
+    const { error: primaryCollisionErr } = await supabase
       .from('patients')
       .insert([
         {
-          name: 'Unclaimed Walk-In Patient',
+          name: 'Unrelated Primary Walk-In Patient',
           age: 30,
           phone: sharedPhone,
           clinic_id: validClinicId,
           auth_user_id: null,
-          managed_by_auth_user_id: null,
+          managed_by_auth_user_id: null, // Attempting primary profile
+        },
+      ]);
+
+    const isBlockedByDBIndex = primaryCollisionErr?.code === '23505' || primaryCollisionErr?.message.includes('idx_patients_primary_phone');
+    console.log(`  └─ DB Index blocked duplicate primary patient on ${sharedPhone}: ${isBlockedByDBIndex} (Code 23505) ✅`);
+
+    // 2. Verify managed dependent family profile CAN share Account A's phone
+    const { data: familyMemberSharingPhone, error: familyShareErr } = await supabase
+      .from('patients')
+      .insert([
+        {
+          name: 'Priya Kumar',
+          age: 18,
+          phone: sharedPhone,
+          clinic_id: validClinicId,
+          auth_user_id: null,
+          managed_by_auth_user_id: authIdA, // Managed family profile
+          relationship: 'child',
+          display_name: 'Priya Kumar (Daughter)',
         },
       ])
       .select('*')
       .single();
 
-    if (pUnclaimedErr || !unclaimedPatient) throw pUnclaimedErr || new Error('Unclaimed patient creation failed');
+    const canFamilySharePhone = !familyShareErr && familyMemberSharingPhone?.phone === sharedPhone;
+    console.log(`  └─ Managed family profile successfully shares primary phone ${sharedPhone}: ${canFamilySharePhone} ✅`);
 
-    // Check collision logic: Phone sharedPhone already belongs to Account A's family profiles
-    const { data: collisionProfiles } = await supabase
-      .from('patients')
-      .select('id, auth_user_id, managed_by_auth_user_id')
-      .eq('phone', sharedPhone)
-      .neq('id', unclaimedPatient.id);
-
-    const hasCollision = (collisionProfiles || []).some(
-      (p) => p.auth_user_id !== null || p.managed_by_auth_user_id !== null
-    );
-
-    console.log(`  └─ Phone Collision Detected for ${sharedPhone}: ${hasCollision} (Expected: true) ✅`);
-    console.log(`  └─ Claim Attempt by Account B is BLOCKED due to existing family profile association ✅`);
-
-    if (!hasCollision) {
-      throw new Error('Test 3 Phone Collision Safety Check Failed!');
+    if (!isBlockedByDBIndex || !canFamilySharePhone) {
+      throw new Error('Test 3 Scoped Index Assertion Failed!');
     }
-    console.log('  └─ TEST 3 PASSED: Phone claim collision safety check verified! ✅\n');
+    console.log('  └─ TEST 3 PASSED: Scoped unique primary phone index and family sharing verified! ✅\n');
 
     // Clean up test data
     await supabase.from('intakes').delete().in('id', [intakeSelfAId, intakeSpouseAId]);
-    await supabase.from('patients').delete().in('id', [patientSelfAId, patientSpouseAId, patientChildAId, unclaimedPatient.id]);
+    await supabase.from('patients').delete().in('id', [
+      patientSelfAId,
+      patientSpouseAId,
+      patientChildAId,
+      familyMemberSharingPhone?.id,
+    ].filter(Boolean));
     await supabase.auth.admin.deleteUser(authIdA);
     await supabase.auth.admin.deleteUser(authIdB);
 

@@ -2,14 +2,15 @@
 -- VaidyaDrishti — Phase 9b Multi-Profile Family Accounts Database Schema Migration
 -- ==============================================================================
 
--- 1. Scoped Unique Index: Primary Account Holders must have unique phone numbers.
--- Managed family profiles under the same primary account can share the family phone.
+-- 1. Scoped Unique Index: Uniqueness applies to ALL primary profiles (both claimed
+-- auth users & unclaimed patients) EXCEPT explicitly managed dependent family profiles
+-- (managed_by_auth_user_id IS NOT NULL).
 DROP INDEX IF EXISTS idx_patients_phone;
 DROP INDEX IF EXISTS idx_patients_primary_phone;
 
 CREATE UNIQUE INDEX idx_patients_primary_phone 
 ON public.patients(phone) 
-WHERE auth_user_id IS NOT NULL AND managed_by_auth_user_id IS NULL;
+WHERE managed_by_auth_user_id IS NULL;
 
 -- 2. General non-unique index for fast phone lookups
 CREATE INDEX idx_patients_phone ON public.patients(phone);

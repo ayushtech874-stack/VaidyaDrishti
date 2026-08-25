@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     const clinicId = primaryPatient?.clinic_id || '00000000-0000-0000-0000-000000000001';
-    const profilePhone = phone || primaryPatient?.phone || `+9199${Date.now().toString().slice(-8)}`;
+    const profilePhone = (phone && phone.trim()) || primaryPatient?.phone || null;
 
     // 2. Insert managed family profile row
     const { data: newProfile, error } = await supabaseAdmin
