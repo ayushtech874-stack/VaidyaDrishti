@@ -35,6 +35,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'This patient account has already been claimed.' }, { status: 409 });
     }
 
+    // 🛑 PHASE 9b PHONE COLLISION SAFETY CHECK:
+    // Verify phone number does not already belong to a different primary account or managed profile
+    if (patient.phone) {
+      const { data: collisionProfiles } = await supabaseAdmin
+        .from('patients')
+        .select('id, auth_user_id, managed_by_auth_user_id')
+        .eq('phone', patient.phone)
+        .neq('id', patient.id);
+
+      const hasCollision = (collisionProfiles || []).some(
+        (p) => p.auth_user_id !== null || p.managed_by_auth_user_id !== null
+      );
+
+      if (hasCollision) {
+        return NextResponse.json(
+          { error: 'Phone number is already associated with another primary account family profile.' },
+          { status: 409 }
+        );
+      }
+    }
+
     // 2. Create Supabase Auth User
     const { data: authUser, error: createAuthErr } = await supabaseAdmin.auth.admin.createUser({
       email: email.trim().toLowerCase(),
