@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
+import { formatPatientSeverity } from '@/lib/clinical/patientSeverityFormatter';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -58,6 +59,8 @@ export async function GET(request: Request) {
     (intakes || []).forEach((i: any) => {
       const clinicName = Array.isArray(i.clinics) ? i.clinics[0]?.name : i.clinics?.name;
       const docName = Array.isArray(i.doctors) ? i.doctors[0]?.name : i.doctors?.name;
+      const severityInfo = formatPatientSeverity(i.urgency_level);
+
       feed.push({
         id: `intake_${i.id}`,
         event_type: 'intake',
@@ -65,6 +68,7 @@ export async function GET(request: Request) {
         title: `OPD Intake Visit: ${clinicName || 'Medical Center'}`,
         doctor_name: docName ? `Dr. ${docName}` : 'Empaneled RMP',
         urgency: i.urgency_level,
+        patient_severity_info: severityInfo, // Softer patient-facing status text
         status: i.status,
         details: i.raw_text || 'Symptom intake submitted',
         structured: i.structured_data,
