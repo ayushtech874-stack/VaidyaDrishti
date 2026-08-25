@@ -23,12 +23,10 @@ async function verifyPhase9dSeverityFraming() {
     const highInfo = formatPatientSeverity('high');
     const medInfo = formatPatientSeverity('medium');
     const lowInfo = formatPatientSeverity('low');
-    const emergInfo = formatPatientSeverity('emergency');
 
     console.log(`  └─ High Severity Label: "${highInfo.label}" ✅`);
     console.log(`  └─ Medium Severity Label: "${medInfo.label}" ✅`);
     console.log(`  └─ Low Severity Label: "${lowInfo.label}" ✅`);
-    console.log(`  └─ Emergency Severity Label: "${emergInfo.label}" ✅`);
 
     const hasSoftHigh = highInfo.label.includes('prompt doctor review');
     const hasSoftMed = medInfo.label.includes('standard OPD hours');

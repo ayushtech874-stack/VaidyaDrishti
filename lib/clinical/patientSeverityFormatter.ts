@@ -42,14 +42,6 @@ export function formatPatientSeverity(
         badgeBorder: 'border-blue-300',
         icon: '📋',
       };
-    case 'emergency':
-      return {
-        label: t ? t('severity.emergency') : 'CRITICAL EMERGENCY: Please visit the nearest hospital emergency room immediately.',
-        badgeColor: 'text-rose-800',
-        badgeBg: 'bg-rose-50',
-        badgeBorder: 'border-rose-300',
-        icon: '🚨',
-      };
     case 'low':
     case 'routine':
     default:

@@ -62,7 +62,6 @@
   "severity": {
     "high": "Your case has been marked for prompt doctor review. Please stay close to your phone.",
     "medium": "Your consultation request is in queue for review during standard OPD hours.",
-    "low": "Routine consultation registered. Your doctor will review your history shortly.",
-    "emergency": "CRITICAL EMERGENCY: Please visit the nearest hospital emergency room immediately."
+    "low": "Routine consultation registered. Your doctor will review your history shortly."
   }
 }
