@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
+import HeaderNavbar from '@/components/HeaderNavbar';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -28,14 +29,17 @@ export default async function ClinicProfilePage({ params }: PageProps) {
 
   if (!clinic) {
     return (
-      <main className="min-h-screen bg-[var(--color-cream-soft)] py-12 px-4 text-center">
-        <div className="max-w-md mx-auto card-surface p-8 border">
-          <h1 className="text-xl font-bold text-gray-800">Facility Profile Not Found</h1>
-          <Link href="/directory" className="text-xs font-bold text-blue-600 hover:underline mt-4 inline-block">
-            ← Back to Directory
-          </Link>
-        </div>
-      </main>
+      <div className="min-h-screen bg-[var(--color-cream-soft)] flex flex-col">
+        <HeaderNavbar />
+        <main className="flex-1 py-12 px-4 text-center">
+          <div className="max-w-md mx-auto card-surface p-8 border">
+            <h1 className="text-xl font-bold text-gray-800">Facility Profile Not Found</h1>
+            <Link href="/directory" className="text-xs font-bold text-blue-600 hover:underline mt-4 inline-block">
+              ← Back to Directory
+            </Link>
+          </div>
+        </main>
+      </div>
     );
   }
 
@@ -45,7 +49,9 @@ export default async function ClinicProfilePage({ params }: PageProps) {
   const qrCodeDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(waDeepLink)}`;
 
   return (
-    <main className="min-h-screen bg-[var(--color-cream-soft)] py-10 px-4">
+    <div className="min-h-screen bg-[var(--color-cream-soft)] text-[var(--color-ink)] flex flex-col">
+      <HeaderNavbar />
+      <main className="flex-1 py-10 px-4">
       <div className="max-w-4xl mx-auto space-y-6">
         <Link href="/directory" className="text-xs font-bold text-blue-600 hover:underline inline-block mb-2">
           ← Back to Public Directory
@@ -166,5 +172,6 @@ export default async function ClinicProfilePage({ params }: PageProps) {
         </div>
       </div>
     </main>
+    </div>
   );
 }
