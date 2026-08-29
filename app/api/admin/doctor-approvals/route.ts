@@ -1,3 +1,9 @@
+// ==============================================================================
+// 🛡️ HARD ADMIN-PATIENT-DATA ISOLATION GUARANTEE
+// This route must never return patient-identifiable data — admin access is
+// strictly limited to facility/doctor management and aggregate metrics only.
+// ==============================================================================
+
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 

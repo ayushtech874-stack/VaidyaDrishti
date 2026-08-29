@@ -8,12 +8,13 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function GET() {
   try {
-    // 1. Fetch all verified & live clinics
+    // 1. Fetch all verified, live, and active clinics
     const { data: clinics, error: cErr } = await supabase
       .from('clinics')
       .select('*')
       .eq('is_verified', true)
-      .eq('is_live', true);
+      .eq('is_live', true)
+      .neq('is_active', false);
 
     if (cErr) throw cErr;
 
@@ -27,19 +28,28 @@ export async function GET() {
       citySet.add('Bhagalpur');
     }
 
-    // 2. Fetch approved doctors
+    // 2. Fetch approved and active doctors whose parent clinic is also active
     const { data: doctors, error: dErr } = await supabase
       .from('doctors')
-      .select('*, clinics(id, name, city, state, is_verified, is_live)')
-      .eq('registration_status', 'approved');
+      .select('*, clinics(id, name, city, state, is_verified, is_live, is_active)')
+      .eq('registration_status', 'approved')
+      .neq('is_active', false);
 
     if (dErr) throw dErr;
+
+    // CASCADE ISOLATION: Filter out doctors whose parent clinic is deactivated (is_active === false)
+    const activeDoctors = (doctors || []).filter((doc: any) => {
+      if (doc.clinics && doc.clinics.is_active === false) {
+        return false; // Clinic deactivated -> doctor disappears from directory
+      }
+      return true;
+    });
 
     return NextResponse.json({
       success: true,
       cities: Array.from(citySet),
       clinics: clinics || [],
-      doctors: doctors || [],
+      doctors: activeDoctors,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

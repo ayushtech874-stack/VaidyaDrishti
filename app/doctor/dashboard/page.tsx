@@ -87,6 +87,33 @@ export default async function DoctorDashboardPage({ searchParams }: PageProps) {
     }
   }
 
+  // 🛑 PHASE 11 GUARD: Deactivated Doctors (is_active === false) cannot access dashboard
+  if (doctorProfile && doctorProfile.is_active === false && !isSuperAdmin) {
+    return (
+      <main className="min-h-screen bg-[var(--color-cream-soft)] py-12 px-4 flex items-center justify-center">
+        <div className="max-w-md w-full card-surface p-8 text-center space-y-6 shadow-xl border border-rose-200">
+          <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center bg-rose-100 text-rose-800 text-2xl font-bold">
+            🚫
+          </div>
+          <div>
+            <span className="inline-block text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded bg-rose-100 text-rose-900 font-bold mb-2">
+              ACCOUNT DEACTIVATED
+            </span>
+            <h1 className="text-xl font-extrabold text-[var(--color-navy)]">
+              Doctor Account Deactivated
+            </h1>
+            <p className="text-xs text-[var(--color-ink-muted)] mt-2 leading-relaxed">
+              Your practitioner account has been deactivated by VaidyaDrishti administration. Access to OPD clinical queues and patient portals is suspended. Please contact the administrator.
+            </p>
+          </div>
+          <div className="pt-4 border-t flex justify-center space-x-3">
+            <SignOutButton />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   // 🛑 PHASE 9a GUARD: Pending or Rejected Doctors cannot access active OPD queue
   if (doctorProfile && doctorProfile.registration_status && doctorProfile.registration_status !== 'approved' && !isSuperAdmin) {
     const isPending = doctorProfile.registration_status === 'pending';
