@@ -62,7 +62,11 @@ export async function POST(req: Request) {
       timeStyle: 'short',
     });
 
-    const notifText = `Dr. ${doc.name} has scheduled your appointment for ${formattedTime}. Reply here if you need to reschedule.`;
+    const docDisplayName = /^dr\.?/i.test((doc.name || '').trim())
+      ? doc.name.trim()
+      : `Dr. ${(doc.name || '').trim()}`;
+
+    const notifText = `${docDisplayName} has scheduled your appointment for ${formattedTime}. Reply here if you need to reschedule.`;
 
     // Find or create conversation thread between doctor and patient
     let { data: conv } = await supabaseAdmin

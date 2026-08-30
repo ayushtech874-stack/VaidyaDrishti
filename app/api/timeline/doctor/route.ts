@@ -99,6 +99,13 @@ export async function GET(request: Request) {
     // Merge into Cross-Clinic Feed
     const feed: any[] = [];
 
+    const formatDocName = (name?: string | null) => {
+      if (!name) return 'Empaneled RMP';
+      const trimmed = name.trim();
+      if (/^dr\.?/i.test(trimmed)) return trimmed;
+      return `Dr. ${trimmed}`;
+    };
+
     (intakes || []).forEach((i: any) => {
       const clinicName = Array.isArray(i.clinics) ? i.clinics[0]?.name : i.clinics?.name;
       const docName = Array.isArray(i.doctors) ? i.doctors[0]?.name : i.doctors?.name;
@@ -107,7 +114,7 @@ export async function GET(request: Request) {
         event_type: 'intake',
         date: i.created_at,
         title: `OPD Intake Visit: ${clinicName || 'Network Facility'}`,
-        doctor_name: docName ? `Dr. ${docName}` : 'Empaneled RMP',
+        doctor_name: formatDocName(docName),
         urgency: i.urgency_level,
         status: i.status,
         details: i.raw_text,
@@ -123,7 +130,7 @@ export async function GET(request: Request) {
         event_type: 'appointment',
         date: a.scheduled_at || a.created_at,
         title: `Tele-Consultation Appointment`,
-        doctor_name: docName ? `Dr. ${docName}` : 'Empaneled RMP',
+        doctor_name: formatDocName(docName),
         status: a.status,
         details: a.notes,
         icon: '📅',
@@ -137,7 +144,7 @@ export async function GET(request: Request) {
         event_type: 'prescription',
         date: r.issued_at,
         title: `E-Prescription Issued (${r.prescription_items?.length || 0} Medications)`,
-        doctor_name: docName ? `Dr. ${docName}` : 'Empaneled RMP',
+        doctor_name: formatDocName(docName),
         items: r.prescription_items,
         icon: '💊',
       });

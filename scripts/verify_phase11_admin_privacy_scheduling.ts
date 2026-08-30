@@ -219,7 +219,7 @@ async function verifyPhase11AdminPrivacyScheduling() {
     console.log(`  └─ Doctor-Scheduled Appointment ID: ${schedAppt.id} | Status: "${schedAppt.status}" ✅`);
 
     // Verify patient thread notification message
-    const notifMsg = `Dr. Dr. Phase11 DeactivateTest has scheduled your appointment.`;
+    const notifMsg = `Dr. Phase11 DeactivateTest has scheduled your appointment.`;
     
     // Call schedule appointment API logic
     const { data: conv } = await supabaseAdmin
