@@ -2,10 +2,26 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import SignOutButton from '@/components/SignOutButton';
 
+import { redirect } from 'next/navigation';
+
 export const revalidate = 0;
 
 export default async function SuperAdminDashboardPage() {
   const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const isSuperAdmin =
+    user &&
+    (user.user_metadata?.role === 'super_admin' ||
+      user.app_metadata?.role === 'super_admin' ||
+      user.email?.toLowerCase().trim() === 'admin@vaidyadrishti.com');
+
+  if (!isSuperAdmin) {
+    redirect('/admin/login');
+  }
 
   const { data: clinics } = await supabase.from('clinics').select('*');
   const { data: doctors } = await supabase.from('doctors').select('*');
