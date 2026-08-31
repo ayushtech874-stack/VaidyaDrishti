@@ -2,327 +2,377 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import HeaderNavbar from '@/components/HeaderNavbar';
 
 export default function PublicDirectoryPage() {
-  const [cities, setCities] = useState<string[]>(['Bhagalpur', 'Patna', 'Muzaffarpur', 'Gaya', 'Darbhanga', 'Purnia', 'Kolkata', 'Delhi', 'Mumbai']);
-  const [selectedCity, setSelectedCity] = useState<string>('Bhagalpur');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [customAddress, setCustomAddress] = useState<string>('');
-  const [isDetectingLocation, setIsDetectingLocation] = useState<boolean>(false);
+  const [selectedCity, setSelectedCity] = useState<string>(''); // Default empty on initial load
+  const [customLocation, setCustomLocation] = useState<string>('');
+  const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
+  const [cities, setCities] = useState<string[]>([]);
   const [clinics, setClinics] = useState<any[]>([]);
   const [doctors, setDoctors] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-
-  const categories = [
-    { id: 'all', label: 'All Specialties' },
-    { id: 'genmed', label: 'General Medicine & Fever' },
-    { id: 'ortho', label: 'Orthopedics & Joints' },
-    { id: 'cardio', label: 'Cardiology & Heart' },
-    { id: 'peds', label: 'Pediatrics & Child Health' },
-    { id: 'derm', label: 'Dermatology & Skin' },
-    { id: 'neuro', label: 'Neurology & Brain' },
-    { id: 'ent', label: 'ENT & Throat' },
-    { id: 'gynae', label: 'Gynecology & Women Health' },
-    { id: 'dental', label: 'Dentistry & Dental' },
-  ];
+  const [loading, setLoading] = useState(true);
+  const [locating, setLocating] = useState(false);
 
   useEffect(() => {
-    // Fetch live directory data
-    fetch('/api/directory/public')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.cities && data.cities.length > 0) {
-          // Merge unique cities
-          const mergedCities = Array.from(new Set([...data.cities, ...cities]));
-          setCities(mergedCities);
-          if (!mergedCities.includes(selectedCity)) {
-            setSelectedCity(mergedCities[0]);
-          }
-        }
+    async function fetchDirectory() {
+      try {
+        const res = await fetch('/api/directory/public');
+        const data = await res.json();
+        if (data.cities) setCities(data.cities);
         if (data.clinics) setClinics(data.clinics);
         if (data.doctors) setDoctors(data.doctors);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      } catch (err) {
+        console.error('Failed to load directory:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchDirectory();
   }, []);
 
-  // Handle Location Auto-Detect
-  const handleAutoLocate = () => {
-    setIsDetectingLocation(true);
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        () => {
-          // Defaulting smoothly to nearest hub
-          setSelectedCity('Patna');
-          setIsDetectingLocation(false);
-        },
-        () => {
-          setIsDetectingLocation(false);
-        }
-      );
-    } else {
-      setIsDetectingLocation(false);
+  const handleAutoDetectLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
     }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false);
+        // Default to first active city or user prompt
+        const detected = cities.length > 0 ? cities[0] : 'Bhagalpur';
+        setSelectedCity(detected);
+        setCustomLocation(`Lat: ${pos.coords.latitude.toFixed(2)}, Lon: ${pos.coords.longitude.toFixed(2)}`);
+      },
+      (err) => {
+        setLocating(false);
+        console.warn(err);
+        alert('Could not auto-detect location. Please select a city manually.');
+      }
+    );
   };
 
-  const filteredClinics = clinics.filter(
-    (c) => (c.city || 'Bhagalpur').toLowerCase() === selectedCity.toLowerCase()
-  );
+  const activeLocationName = customLocation || selectedCity;
 
-  const filteredDoctors = doctors.filter((d) => {
-    const docCity = d.clinics?.city || 'Bhagalpur';
-    const cityMatch = docCity.toLowerCase() === selectedCity.toLowerCase();
-    if (!cityMatch) return false;
-    if (selectedCategory === 'all') return true;
+  // Filter doctors by selected city & specialty
+  const filteredDoctors = doctors.filter((doc) => {
+    if (!selectedCity) return false;
+    const docCity = doc.clinics?.city || doc.city || 'Bhagalpur';
+    const matchesCity = docCity.toLowerCase() === selectedCity.toLowerCase();
+    if (!matchesCity) return false;
 
-    const spec = (d.qualifications || '' + (d.department?.name || '')).toLowerCase();
-    if (selectedCategory === 'genmed' && (spec.includes('general') || spec.includes('medicine') || spec.includes('mbbs'))) return true;
-    if (selectedCategory === 'ortho' && (spec.includes('ortho') || spec.includes('bone') || spec.includes('joint'))) return true;
-    if (selectedCategory === 'cardio' && (spec.includes('cardio') || spec.includes('heart') || spec.includes('chest'))) return true;
-    if (selectedCategory === 'peds' && (spec.includes('pediatric') || spec.includes('child'))) return true;
-    if (selectedCategory === 'derm' && (spec.includes('skin') || spec.includes('derm'))) return true;
-    if (selectedCategory === 'neuro' && (spec.includes('neuro') || spec.includes('brain'))) return true;
-    if (selectedCategory === 'ent' && spec.includes('ent')) return true;
-    if (selectedCategory === 'gynae' && (spec.includes('gynae') || spec.includes('women'))) return true;
-    if (selectedCategory === 'dental' && (spec.includes('dental') || spec.includes('dentist'))) return true;
-
-    return false;
+    if (selectedSpecialty !== 'all') {
+      const specMatch = (doc.qualifications || doc.specialty || '').toLowerCase().includes(selectedSpecialty.toLowerCase());
+      if (!specMatch) return false;
+    }
+    return true;
   });
 
+  // Filter clinics by selected city
+  const filteredClinics = clinics.filter((clinic) => {
+    if (!selectedCity) return false;
+    const clinicCity = clinic.city || 'Bhagalpur';
+    return clinicCity.toLowerCase() === selectedCity.toLowerCase();
+  });
+
+  const specialties = [
+    { id: 'all', name: 'All Specialties', icon: '🩺' },
+    { id: 'general', name: 'General Medicine', icon: '🩺' },
+    { id: 'orthopedics', name: 'Orthopedics', icon: '🦴' },
+    { id: 'cardiology', name: 'Cardiology', icon: '❤️' },
+    { id: 'pediatrics', name: 'Pediatrics', icon: '👶' },
+    { id: 'dermatology', name: 'Dermatology', icon: '🧴' },
+    { id: 'neurology', name: 'Neurology', icon: '🧠' },
+    { id: 'ent', name: 'ENT Specialist', icon: '👂' },
+    { id: 'gynecology', name: 'Gynecology', icon: '🩺' },
+    { id: 'dental', name: 'Dental Care', icon: '🦷' },
+  ];
+
   return (
-    <div className="min-h-screen bg-slate-50/50 text-[#0F172A] flex flex-col font-sans selection:bg-blue-100 selection:text-blue-900">
-      {/* Global Clean Header Navbar */}
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
       <HeaderNavbar />
 
-      {/* Hero Section with Glassmorphism Design */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 space-y-8">
-        <div className="relative rounded-3xl p-8 sm:p-12 overflow-hidden bg-gradient-to-br from-slate-900 via-[#0F172A] to-blue-950 text-white shadow-xl">
-          {/* Glass Accent Glow */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Hero Glassmorphic Header */}
+      <section className="relative overflow-hidden pt-12 pb-16 px-4 sm:px-6 bg-gradient-to-b from-slate-900 via-slate-900/90 to-slate-900 border-b border-slate-800/80">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-blue-600/15 blur-[120px] rounded-full pointer-events-none" />
 
-          <div className="relative z-10 max-w-3xl space-y-4">
-            <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-300 border border-blue-400/30 backdrop-blur-md">
-              Verified Medical Practitioners Network
-            </span>
+        <div className="max-w-5xl mx-auto text-center space-y-6 relative z-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-400/20 text-blue-400 text-xs font-semibold tracking-wide">
+            <span>✨ RMP Verified Tele-Triage & Hospital Directory</span>
+          </div>
 
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white leading-tight">
-              Find Top Healthcare Specialists Near You
-            </h1>
+          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white max-w-3xl mx-auto leading-tight">
+            Find Top Healthcare Specialists Near You
+          </h1>
 
-            <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl font-normal">
-              Browse registered doctors and accredited medical centers in your city. Inspect qualifications, clinic availability, and book consultations seamlessly.
-            </p>
+          <p className="text-slate-400 text-sm sm:text-base max-w-xl mx-auto font-normal leading-relaxed">
+            Select your location or auto-locate to discover verified doctors, specialty clinics, and accredited multi-specialty hospitals in your area.
+          </p>
 
-            {/* Location Selection & Auto-Detect Control */}
-            <div className="pt-4 flex flex-wrap items-center gap-3">
-              <div className="relative flex-1 min-w-[220px]">
-                <select
-                  value={selectedCity}
-                  onChange={(e) => setSelectedCity(e.target.value)}
-                  className="w-full pl-4 pr-10 py-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition cursor-pointer appearance-none"
-                >
-                  {cities.map((city) => (
-                    <option key={city} value={city} className="text-slate-900 font-medium">
-                      Location: {city}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
-                  ▼
-                </div>
-              </div>
+          {/* Location Selector Controls */}
+          <div className="max-w-2xl mx-auto pt-4 flex flex-col sm:flex-row items-center gap-3">
+            {/* Auto-Detect Location Button */}
+            <button
+              onClick={handleAutoDetectLocation}
+              disabled={locating}
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-3 px-5 rounded-xl transition-all shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 shrink-0 cursor-pointer disabled:opacity-50"
+            >
+              <span>{locating ? '⌛ Locating...' : '📍 Auto-Detect Location'}</span>
+            </button>
 
-              {/* Auto Locate Button */}
-              <button
-                onClick={handleAutoLocate}
-                disabled={isDetectingLocation}
-                className="px-4 py-3 rounded-2xl bg-white/15 hover:bg-white/25 border border-white/20 text-white text-xs font-semibold backdrop-blur-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+            {/* City Dropdown */}
+            <div className="relative w-full">
+              <select
+                value={selectedCity}
+                onChange={(e) => {
+                  setSelectedCity(e.target.value);
+                  setCustomLocation('');
+                }}
+                className="w-full bg-slate-800/80 border border-slate-700 text-white text-xs font-medium rounded-xl px-4 py-3 appearance-none focus:outline-none focus:border-blue-500 transition-all cursor-pointer"
               >
-                <span>📍</span>
-                <span>{isDetectingLocation ? 'Locating...' : 'Auto-Detect Location'}</span>
-              </button>
-
-              {/* Address Search Field */}
-              <input
-                type="text"
-                placeholder="Or enter area / pincode..."
-                value={customAddress}
-                onChange={(e) => setCustomAddress(e.target.value)}
-                className="px-4 py-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white placeholder-slate-400 text-xs font-normal focus:outline-none focus:ring-2 focus:ring-blue-400 transition min-w-[200px]"
-              />
+                <option value="">-- Select Your Location --</option>
+                {cities.map((city) => (
+                  <option key={city} value={city} className="bg-slate-900 text-white">
+                    📍 {city}
+                  </option>
+                ))}
+              </select>
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs">
+                ▼
+              </span>
             </div>
+
+            {/* Custom Location / Pincode Input */}
+            <input
+              type="text"
+              placeholder="Enter Pincode / Landmark..."
+              value={customLocation}
+              onChange={(e) => setCustomLocation(e.target.value)}
+              className="w-full bg-slate-800/80 border border-slate-700 text-white text-xs font-medium rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-all placeholder:text-slate-500"
+            />
           </div>
         </div>
+      </section>
 
-        {/* Full-Width Horizontal Scrollable Specialty Category Bar */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between px-1">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Browse by Medical Specialty
-            </h3>
-            <span className="text-[11px] text-slate-400">Scroll horizontally →</span>
-          </div>
-
-          <div className="w-full overflow-x-auto whitespace-nowrap pb-2 pt-1 scrollbar-none flex gap-2.5">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
-                className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 flex-shrink-0 cursor-pointer ${
-                  selectedCategory === cat.id
-                    ? 'bg-[#0F172A] text-white shadow-md'
-                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100/80 hover:border-slate-300'
-                }`}
-              >
-                {cat.label}
-              </button>
-            ))}
+      {/* Horizontal Scrollable Specialty Category Bar */}
+      <section className="py-4 bg-slate-900/60 border-b border-slate-800/60 sticky top-[61px] z-40 backdrop-blur-lg">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+            {specialties.map((spec) => {
+              const active = selectedSpecialty === spec.id;
+              return (
+                <button
+                  key={spec.id}
+                  onClick={() => setSelectedSpecialty(spec.id)}
+                  className={`px-4 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all flex items-center gap-2 cursor-pointer ${
+                    active
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20 font-semibold'
+                      : 'bg-slate-800/60 text-slate-300 hover:bg-slate-800 border border-slate-700/50'
+                  }`}
+                >
+                  <span>{spec.icon}</span>
+                  <span>{spec.name}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
+      </section>
 
-        {/* Dynamic City Doctors Listing */}
+      {/* Main Content Area */}
+      <main className="max-w-5xl mx-auto px-4 py-8 flex-1 w-full space-y-10">
         {loading ? (
-          <div className="p-16 text-center text-xs text-slate-500 font-medium bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200">
-            Loading healthcare providers in {selectedCity}...
+          <div className="py-20 text-center space-y-3">
+            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs text-slate-400 font-medium">Loading verified medical directory...</p>
+          </div>
+        ) : !selectedCity ? (
+          /* INITIAL BLANK LOCATION PROMPT STATE */
+          <div className="py-16 px-6 rounded-2xl bg-slate-800/40 border border-slate-700/50 text-center space-y-4 max-w-xl mx-auto my-8 shadow-xl backdrop-blur-md">
+            <div className="w-16 h-16 rounded-full bg-blue-500/10 border border-blue-400/20 text-blue-400 text-3xl mx-auto flex items-center justify-center">
+              📍
+            </div>
+            <h2 className="text-xl font-bold text-white">Select Your Location to View Doctors</h2>
+            <p className="text-xs text-slate-400 leading-relaxed max-w-md mx-auto">
+              Please choose a city from the location menu above or click <span className="text-blue-400 font-semibold">"Auto-Detect Location"</span> to discover verified RMP practitioners and medical facilities in your area.
+            </p>
           </div>
         ) : (
-          <div className="space-y-10">
-            {/* Doctors Section */}
+          <>
+            {/* SECTION 1: VERIFIED DOCTORS (1 CARD PER ROW LAYOUT) */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-[#0F172A] tracking-tight">
-                  Verified Doctors in {selectedCity} ({filteredDoctors.length})
-                </h2>
-                <Link
-                  href="/doctor/register"
-                  className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
-                >
-                  Doctor Registration →
-                </Link>
+                <div>
+                  <h2 className="text-xl font-bold text-white tracking-tight">
+                    Verified Doctors in {activeLocationName || selectedCity}
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Empaneled RMP practitioners available for OPD triage and tele-consultations
+                  </p>
+                </div>
+                <span className="text-xs bg-slate-800 text-slate-300 font-semibold px-3 py-1 rounded-full border border-slate-700">
+                  {filteredDoctors.length} {filteredDoctors.length === 1 ? 'Doctor' : 'Doctors'} Listed
+                </span>
               </div>
 
               {filteredDoctors.length === 0 ? (
-                <div className="p-12 text-center text-xs text-slate-500 bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200">
-                  No verified practitioners listed under this specialty in {selectedCity} yet.
+                /* NO DOCTORS AT LOCATION EMPTY STATE */
+                <div className="py-12 px-6 rounded-2xl bg-slate-800/30 border border-slate-700/50 text-center space-y-3">
+                  <span className="text-3xl">🩺</span>
+                  <h3 className="text-base font-bold text-white">
+                    No doctors available right now at this particular location.
+                  </h3>
+                  <p className="text-xs text-slate-400 max-w-md mx-auto">
+                    We could not find any active RMP doctors listed for <span className="text-slate-200 font-medium">"{activeLocationName || selectedCity}"</span>. Try selecting another nearby city or check back soon.
+                  </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {filteredDoctors.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="bg-white/80 backdrop-blur-md border border-slate-200/80 hover:border-blue-400/80 hover:shadow-xl transition-all duration-300 rounded-2xl p-6 flex flex-col justify-between space-y-4 group"
-                    >
-                      <div className="space-y-3">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-start gap-4">
-                            {/* Doctor Avatar Badge */}
-                            <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 text-[#0F172A] flex items-center justify-center font-bold text-lg overflow-hidden flex-shrink-0 shadow-xs">
-                              {doc.photo_url ? (
-                                <img src={doc.photo_url} alt={doc.name} className="w-full h-full object-cover" />
-                              ) : (
-                                doc.name.charAt(0) || 'D'
-                              )}
+                /* 1 DOCTOR CARD PER ROW FULL-WIDTH LAYOUT */
+                <div className="flex flex-col space-y-4">
+                  {filteredDoctors.map((doc) => {
+                    const clinicName = doc.clinics?.name || 'Central Facility Complex';
+                    return (
+                      <div
+                        key={doc.id}
+                        className="bg-slate-800/50 backdrop-blur-md border border-slate-700/70 hover:border-blue-500/50 rounded-2xl p-6 transition-all duration-200 hover:shadow-xl hover:shadow-blue-500/5 flex flex-col md:flex-row items-start md:items-center justify-between gap-6"
+                      >
+                        {/* Left: Avatar & Info */}
+                        <div className="flex items-start gap-4">
+                          <div className="w-16 h-16 rounded-2xl bg-slate-700/80 border border-slate-600 flex items-center justify-center text-xl font-bold text-blue-400 shrink-0 overflow-hidden shadow-sm">
+                            {doc.photo_url ? (
+                              <img src={doc.photo_url} alt={doc.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span>👨‍⚕️</span>
+                            )}
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="text-lg font-bold text-white">{doc.name}</h3>
+                              <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                RMP VERIFIED ✓
+                              </span>
                             </div>
 
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                  RMP Verified
-                                </span>
-                              </div>
-                              <h3 className="text-base font-bold text-[#0F172A] group-hover:text-blue-600 transition-colors">
-                                {doc.name}
-                              </h3>
-                              <p className="text-xs text-slate-500 font-medium">{doc.qualifications || 'MBBS Practitioner'}</p>
-                              <p className="text-[11px] font-mono text-slate-400 mt-0.5">
-                                Reg: {doc.rmp_registration_number || 'VERIFIED-RMP'}
+                            <p className="text-xs text-blue-400 font-semibold">
+                              {doc.qualifications || 'MBBS Physician'}
+                              <span className="text-slate-500 mx-2">•</span>
+                              <span className="text-slate-300 font-mono">Reg: {doc.rmp_registration_number || 'VERIFIED-RMP'}</span>
+                            </p>
+
+                            <p className="text-xs text-slate-400 flex items-center gap-1.5">
+                              <span>🏥</span>
+                              <span>{clinicName}</span>
+                              <span className="text-slate-600">•</span>
+                              <span className="text-slate-400">📍 {doc.clinics?.city || doc.city || selectedCity}</span>
+                            </p>
+
+                            {doc.short_bio && (
+                              <p className="text-xs text-slate-300 line-clamp-2 pt-1 max-w-xl">
+                                {doc.short_bio}
                               </p>
-                            </div>
+                            )}
                           </div>
                         </div>
 
-                        {doc.short_bio && (
-                          <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed bg-slate-50/80 p-3 rounded-xl border border-slate-100/80 font-normal">
-                            "{doc.short_bio}"
-                          </p>
-                        )}
-
-                        <div className="text-xs text-slate-500 pt-1 flex items-center gap-2 border-t border-slate-100">
-                          <span className="font-medium text-slate-700">{doc.clinics?.name || 'Associated Clinic'}</span>
-                          <span className="text-slate-400">• {doc.clinics?.city || selectedCity}</span>
+                        {/* Right: Consultation CTA */}
+                        <div className="w-full md:w-auto flex flex-col sm:flex-row md:flex-col gap-2 shrink-0 border-t md:border-t-0 border-slate-700/50 pt-4 md:pt-0">
+                          <Link
+                            href={`/directory/doctor/${doc.id}`}
+                            className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-5 py-3 rounded-xl transition-all text-center shadow-lg shadow-blue-600/20"
+                          >
+                            Book Consultation →
+                          </Link>
+                          <span className="text-[10px] text-slate-400 text-center">
+                            Instant OPD Triage & Direct Scheduling
+                          </span>
                         </div>
                       </div>
-
-                      {/* Action CTAs */}
-                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
-                        <Link
-                          href={`/directory/doctor/${doc.id}`}
-                          className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
-                        >
-                          View Credentials →
-                        </Link>
-
-                        <Link
-                          href={`/patient/dashboard/new-consultation?doctor_id=${doc.id}`}
-                          className="bg-[#0F172A] hover:bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-semibold transition-all shadow-xs"
-                        >
-                          Book Consultation
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
 
-            {/* Clinics Section */}
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold text-[#0F172A] tracking-tight">
-                Accredited Medical Facilities in {selectedCity} ({filteredClinics.length})
-              </h2>
+            {/* SECTION 2: MULTI-SPECIALTY HOSPITALS & CLINICS */}
+            <div className="space-y-4 pt-6 border-t border-slate-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-white tracking-tight">
+                    Accredited Medical Facilities in {activeLocationName || selectedCity}
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Hospitals & Diagnostic Centers with Empaneled OPD Roster
+                  </p>
+                </div>
+              </div>
 
               {filteredClinics.length === 0 ? (
-                <div className="p-12 text-center text-xs text-slate-500 bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200">
-                  No verified clinics currently listed in {selectedCity}.
-                </div>
+                <p className="text-xs text-slate-500 italic">No medical facilities registered for this location.</p>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {filteredClinics.map((clinic) => (
-                    <div
-                      key={clinic.id}
-                      className="bg-white/80 backdrop-blur-md border border-slate-200/80 hover:border-blue-400/80 hover:shadow-xl transition-all duration-300 rounded-2xl p-6 flex flex-col justify-between space-y-4"
-                    >
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
-                          Accredited Facility
-                        </span>
-                        <h3 className="text-base font-bold text-[#0F172A] mt-2">{clinic.name}</h3>
-                        <p className="text-xs text-slate-500 mt-1">{clinic.address || 'Central District'}</p>
-                      </div>
+                <div className="flex flex-col space-y-4">
+                  {filteredClinics.map((clinic) => {
+                    const empaneledDocs = doctors.filter((d) => d.clinic_id === clinic.id);
+                    return (
+                      <div
+                        key={clinic.id}
+                        className="bg-slate-800/40 backdrop-blur-md border border-slate-700/60 rounded-2xl p-6 space-y-4"
+                      >
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">🏥</span>
+                              <h3 className="text-lg font-bold text-white">{clinic.name}</h3>
+                              <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                MULTI-SPECIALTY FACILITY
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-400">
+                              {clinic.address || 'Central OPD Complex'}, {clinic.city || selectedCity}
+                            </p>
+                          </div>
 
-                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                        <Link
-                          href={`/directory/clinic/${clinic.id}`}
-                          className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
-                        >
-                          View Facility Profile & Hours →
-                        </Link>
+                          <span className="text-xs font-semibold px-3 py-1 rounded-xl bg-slate-700/60 text-slate-200 border border-slate-600">
+                            {empaneledDocs.length} Empaneled {empaneledDocs.length === 1 ? 'Doctor' : 'Doctors'}
+                          </span>
+                        </div>
+
+                        {/* Roster Preview */}
+                        {empaneledDocs.length > 0 && (
+                          <div className="pt-3 border-t border-slate-700/40 space-y-2">
+                            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                              Empaneled Medical Specialists:
+                            </span>
+                            <div className="flex flex-wrap gap-2">
+                              {empaneledDocs.map((d) => (
+                                <Link
+                                  key={d.id}
+                                  href={`/directory/doctor/${d.id}`}
+                                  className="text-xs bg-slate-800 hover:bg-slate-700 text-blue-300 px-3 py-1.5 rounded-lg border border-slate-700 transition flex items-center gap-1.5"
+                                >
+                                  <span>👨‍⚕️</span>
+                                  <span className="font-medium">{d.name}</span>
+                                  <span className="text-slate-500">({d.qualifications || 'Physician'})</span>
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
-          </div>
+          </>
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-6 px-4 text-center text-xs text-slate-500">
-        <p className="font-semibold text-slate-700">VaidyaDrishti Healthcare Network</p>
-        <p className="mt-1">Telemedicine Practice Guidelines & Digital Personal Data Protection Compliant.</p>
+      {/* Public Footer */}
+      <footer className="py-8 px-4 border-t border-slate-800 text-center text-xs text-slate-500">
+        <p>© 2026 VaidyaDrishti Tele-Triage Network. All Rights Reserved.</p>
       </footer>
     </div>
   );

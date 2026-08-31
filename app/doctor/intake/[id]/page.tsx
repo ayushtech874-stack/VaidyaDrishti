@@ -397,10 +397,18 @@ export default async function DoctorIntakeDetailPage({
           </p>
         </div>
 
-        <IntakeStageActions
-          intakeId={intake.id}
-          currentStatus={intake.status}
-        />
+        {(() => {
+          const pat = Array.isArray(intake.patients) ? intake.patients[0] : intake.patients;
+          return (
+            <IntakeStageActions
+              intakeId={intake.id}
+              currentStatus={intake.status}
+              patientId={pat?.id}
+              patientName={pat?.name || 'Patient'}
+              relationship={(pat as any)?.relationship || 'self'}
+            />
+          );
+        })()}
       </div>
     </div>
   );

@@ -1,16 +1,27 @@
 'use client';
 
 import { useState } from 'react';
+import DigiLockerRecordDrawer from '@/components/DigiLockerRecordDrawer';
 
 interface IntakeStageActionsProps {
   intakeId: string;
   currentStatus: string;
+  patientId?: string;
+  patientName?: string;
+  relationship?: string;
 }
 
-export default function IntakeStageActions({ intakeId, currentStatus }: IntakeStageActionsProps) {
+export default function IntakeStageActions({
+  intakeId,
+  currentStatus,
+  patientId,
+  patientName,
+  relationship = 'self',
+}: IntakeStageActionsProps) {
   const [showConsultModal, setShowConsultModal] = useState(false);
   const [showTreatedModal, setShowTreatedModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDigiLocker, setShowDigiLocker] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleStatusChange(targetAction: 'in_progress' | 'treated' | 'delete', targetTab?: string) {
@@ -49,11 +60,21 @@ export default function IntakeStageActions({ intakeId, currentStatus }: IntakeSt
     <div className="space-y-4">
       {/* Footer Buttons Bar */}
       <div className="flex flex-wrap items-center gap-3">
+        {patientId && (
+          <button
+            type="button"
+            onClick={() => setShowDigiLocker(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-3 rounded-xl shadow-md transition active:scale-95 text-sm flex items-center gap-2 cursor-pointer"
+          >
+            <span>🔐</span> Fetch DigiLocker Health Record
+          </button>
+        )}
+
         {currentStatus !== 'in_progress' && currentStatus !== 'doctor_reviewed' && (
           <button
             type="button"
             onClick={() => setShowConsultModal(true)}
-            className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-5 py-3 rounded-xl shadow-md transition active:scale-95 text-sm flex items-center gap-2"
+            className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-5 py-3 rounded-xl shadow-md transition active:scale-95 text-sm flex items-center gap-2 cursor-pointer"
           >
             <span>🩺</span> Move to Under Consultation Room
           </button>
@@ -63,7 +84,7 @@ export default function IntakeStageActions({ intakeId, currentStatus }: IntakeSt
           <button
             type="button"
             onClick={() => setShowTreatedModal(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-3 rounded-xl shadow-md transition active:scale-95 text-sm flex items-center gap-2"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-3 rounded-xl shadow-md transition active:scale-95 text-sm flex items-center gap-2 cursor-pointer"
           >
             <span>✅</span> Mark as Treated & Cured
           </button>
@@ -72,11 +93,21 @@ export default function IntakeStageActions({ intakeId, currentStatus }: IntakeSt
         <button
           type="button"
           onClick={() => setShowDeleteModal(true)}
-          className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold px-4 py-3 rounded-xl shadow-sm transition active:scale-95 text-sm flex items-center gap-1.5"
+          className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold px-4 py-3 rounded-xl shadow-sm transition active:scale-95 text-sm flex items-center gap-1.5 cursor-pointer"
         >
           <span>🗑️</span> Delete Patient Intake
         </button>
       </div>
+
+      {/* DigiLocker Drawer */}
+      {showDigiLocker && patientId && (
+        <DigiLockerRecordDrawer
+          patientId={patientId}
+          patientName={patientName || 'Patient'}
+          relationship={relationship}
+          onClose={() => setShowDigiLocker(false)}
+        />
+      )}
 
       {/* Confirmation Modal 1: Move to Under Consultation Room */}
       {showConsultModal && (
