@@ -59,7 +59,7 @@ export default function DigiLockerRecordDrawer({
         <div className="bg-[#0F172A] text-white p-6 flex items-center justify-between">
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded bg-blue-500/20 text-blue-300 text-[10px] font-extrabold uppercase tracking-wider">
-              <span>🔐 DigiLocker Patient Health Record</span>
+              <span>🔐 VaidyaDrishti Patient Health Record</span>
             </div>
             <h2 className="text-xl font-extrabold tracking-tight">{patientName}</h2>
             <p className="text-xs text-slate-400">

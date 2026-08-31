@@ -66,7 +66,7 @@ export default function IntakeStageActions({
             onClick={() => setShowDigiLocker(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-3 rounded-xl shadow-md transition active:scale-95 text-sm flex items-center gap-2 cursor-pointer"
           >
-            <span>🔐</span> Fetch DigiLocker Health Record
+            <span>🔐</span> Fetch VaidyaDrishti Health Record
           </button>
         )}
 
