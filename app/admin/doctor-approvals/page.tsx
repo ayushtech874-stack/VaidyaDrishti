@@ -3,20 +3,23 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-export default function AdminDoctorApprovalsPage() {
+export default function DoctorApprovalsPage() {
   const [pendingDoctors, setPendingDoctors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [rejectionReasons, setRejectionReasons] = useState<{ [key: string]: string }>({});
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
 
-  const fetchPending = async () => {
+  useEffect(() => {
+    fetchPendingApplications();
+  }, []);
+
+  const fetchPendingApplications = async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/admin/doctor-approvals');
       const data = await res.json();
-      if (data.pendingDoctors) {
-        setPendingDoctors(data.pendingDoctors);
+      if (data.doctors) {
+        setPendingDoctors(data.doctors);
       }
     } catch (err) {
       console.error(err);
@@ -25,57 +28,48 @@ export default function AdminDoctorApprovalsPage() {
     }
   };
 
-  useEffect(() => {
-    fetchPending();
-  }, []);
-
-  const handleAction = async (doctorId: string, action: 'approve' | 'reject') => {
-    setActionLoading(doctorId);
+  const handleApprovalAction = async (doctorId: string, action: 'approve' | 'reject') => {
+    setProcessingId(doctorId);
     setMsg('');
     try {
       const res = await fetch('/api/admin/doctor-approvals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          doctor_id: doctorId,
-          action,
-          rejection_reason: rejectionReasons[doctorId] || 'Credentials verification incomplete.',
-        }),
+        body: JSON.stringify({ doctor_id: doctorId, action }),
       });
-
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Action failed');
 
-      setMsg(data.message);
-      fetchPending();
+      setMsg(`Doctor application ${action}d successfully!`);
+      setPendingDoctors((prev) => prev.filter((d) => d.id !== doctorId));
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      setMsg(`Error: ${err.message}`);
     } finally {
-      setActionLoading(null);
+      setProcessingId(null);
     }
   };
 
   return (
-    <main className="min-h-screen bg-[var(--color-cream-soft)] py-10 px-4">
+    <main className="min-h-screen bg-[var(--color-cream)] py-10 px-4 font-sans text-[var(--color-ink)]">
       <div className="max-w-4xl mx-auto space-y-6">
-        <div className="card-surface p-6 flex justify-between items-center border border-[var(--color-border)]">
+        <div className="card-surface p-6 flex justify-between items-center border border-[var(--color-border)] shadow-sm">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-800 px-2 py-0.5 rounded">
-              ADMIN VERIFICATION QUEUE
+            <span className="text-[10px] font-bold uppercase tracking-wider bg-[var(--color-violet-soft)] text-[var(--color-violet)] px-2.5 py-0.5 rounded-full border border-[var(--color-violet)]/20">
+              RMP VERIFICATION QUEUE
             </span>
-            <h1 className="text-xl font-extrabold text-[var(--color-navy)] mt-1">Doctor Self-Registration Approvals</h1>
+            <h1 className="text-xl font-heading font-extrabold text-[var(--color-ink)] mt-1">Doctor Self-Registration Approvals</h1>
             <p className="text-xs text-[var(--color-ink-muted)]">
-              Review RMP license proof, qualifications, and facility affiliation. Approving a doctor also activates any new clinic created.
+              Verify submitted RMP licenses and credentials before granting directory listing.
             </p>
           </div>
-          <Link href="/admin/dashboard" className="text-xs font-bold text-blue-600 hover:underline">
-            ← Admin Dashboard
+          <Link href="/admin" className="btn-secondary text-xs py-2 px-4">
+            ← Back to Portal
           </Link>
         </div>
 
         {msg && (
-          <div className="p-4 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-lg text-xs font-bold">
-            ✅ {msg}
+          <div className="p-4 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-[var(--radius-md)] text-xs font-bold">
+            {msg}
           </div>
         )}
 
@@ -83,84 +77,66 @@ export default function AdminDoctorApprovalsPage() {
           <div className="p-8 text-center text-xs text-[var(--color-ink-muted)]">Loading pending applications...</div>
         ) : pendingDoctors.length === 0 ? (
           <div className="card-surface p-8 text-center text-xs text-[var(--color-ink-muted)]">
-            🎉 No pending doctor registration applications in queue.
+            No pending doctor applications awaiting review right now.
           </div>
         ) : (
           <div className="space-y-4">
             {pendingDoctors.map((doc) => (
-              <div key={doc.id} className="card-surface p-6 border-2 border-amber-200 bg-amber-50/10 space-y-4">
-                <div className="flex flex-wrap justify-between items-start gap-2">
+              <div key={doc.id} className="card-surface p-6 border-2 border-[var(--color-border)] space-y-4">
+                <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="text-base font-extrabold text-[var(--color-navy)]">{doc.name}</h3>
+                    <h3 className="text-base font-heading font-extrabold text-[var(--color-ink)]">{doc.name}</h3>
                     <p className="text-xs text-[var(--color-ink-muted)]">{doc.email} | {doc.phone}</p>
-                    <p className="text-xs font-semibold text-gray-700 mt-1">
-                      RMP Reg #: <span className="font-mono text-blue-700 font-bold">{doc.rmp_registration_number}</span>
+                    <p className="text-xs text-[var(--color-violet)] font-bold font-data mt-1">
+                      RMP Reg #: <span className="font-mono text-[var(--color-ink)]">{doc.rmp_registration_number}</span>
                     </p>
                   </div>
-                  <span className="text-[10px] font-bold uppercase bg-amber-100 text-amber-900 px-2.5 py-1 rounded">
-                    Status: PENDING REVIEW
+                  <span className="text-[10px] font-bold uppercase bg-[var(--color-urgent-medium-bg)] text-[var(--color-urgent-medium)] px-2.5 py-1 rounded-full border border-[var(--color-urgent-medium)]/30">
+                    PENDING APPROVAL ⏳
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-white border rounded text-xs">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs bg-[var(--color-cream)] p-4 rounded-[var(--radius-md)] border border-[var(--color-border)]">
                   <div>
-                    <p className="font-bold text-[var(--color-navy)]">Qualifications & Bio:</p>
-                    <p className="text-gray-700">{doc.qualifications}</p>
-                    {doc.short_bio && <p className="text-gray-500 italic mt-1 font-serif">"{doc.short_bio}"</p>}
+                    <p className="font-bold text-[var(--color-ink)]">Qualifications & Bio:</p>
+                    <p className="text-[var(--color-ink-muted)]">{doc.qualifications || 'MBBS'}</p>
+                    <p className="text-[var(--color-ink-muted)] italic mt-1">{doc.short_bio || 'No bio provided'}</p>
                   </div>
-
                   <div>
-                    <p className="font-bold text-[var(--color-navy)]">Facility Affiliation:</p>
-                    <p className="text-gray-700">
-                      {doc.clinics?.name} ({doc.clinics?.city || 'Bhagalpur'})
-                    </p>
-                    <p className="text-[10px] text-gray-500 mt-0.5">
-                      Clinic Status: {doc.clinics?.is_verified ? 'Verified ✅' : 'Unverified / Pending Safeguard ⚠️'}
-                    </p>
+                    <p className="font-bold text-[var(--color-ink)]">Facility Affiliation:</p>
+                    <p className="text-[var(--color-ink-muted)]">{doc.clinics?.name || 'New Facility Sub-flow'}</p>
+                    <p className="text-[var(--color-ink-muted)]">{doc.clinics?.city || doc.city || 'Bhagalpur'}</p>
                   </div>
                 </div>
 
-                {doc.licenseDocUrl && (
+                {doc.license_doc_url && (
                   <div>
                     <a
-                      href={doc.licenseDocUrl}
+                      href={doc.license_doc_url}
                       target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center space-x-1.5 text-xs font-bold text-blue-700 hover:underline bg-blue-50 px-3 py-1.5 rounded border border-blue-200"
+                      rel="noreferrer"
+                      className="btn-secondary text-xs py-1.5 px-3"
                     >
-                      <span>📄 View Uploaded RMP License Document</span>
-                      <span>↗</span>
+                      📄 View Submitted License Proof →
                     </a>
                   </div>
                 )}
 
-                <div className="pt-3 border-t flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex-1 max-w-md">
-                    <input
-                      type="text"
-                      placeholder="Optional rejection reason..."
-                      value={rejectionReasons[doc.id] || ''}
-                      onChange={(e) => setRejectionReasons({ ...rejectionReasons, [doc.id]: e.target.value })}
-                      className="w-full p-2 text-xs border rounded bg-white text-gray-900"
-                    />
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handleAction(doc.id, 'reject')}
-                      disabled={actionLoading === doc.id}
-                      className="px-4 py-2 bg-rose-100 text-rose-800 hover:bg-rose-200 font-bold text-xs rounded border border-rose-300 transition"
-                    >
-                      Reject Application
-                    </button>
-                    <button
-                      onClick={() => handleAction(doc.id, 'approve')}
-                      disabled={actionLoading === doc.id}
-                      className="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 font-bold text-xs rounded shadow transition"
-                    >
-                      {actionLoading === doc.id ? 'Approving...' : 'Approve Doctor & Facility ✅'}
-                    </button>
-                  </div>
+                <div className="flex justify-end gap-3 pt-2 border-t border-[var(--color-border)]">
+                  <button
+                    disabled={processingId === doc.id}
+                    onClick={() => handleApprovalAction(doc.id, 'reject')}
+                    className="btn-destructive text-xs py-2 px-4"
+                  >
+                    Reject Application
+                  </button>
+                  <button
+                    disabled={processingId === doc.id}
+                    onClick={() => handleApprovalAction(doc.id, 'approve')}
+                    className="btn-primary text-xs py-2 px-4 shadow"
+                  >
+                    {processingId === doc.id ? 'Processing...' : 'Approve Doctor Application ✓'}
+                  </button>
                 </div>
               </div>
             ))}

@@ -42,15 +42,15 @@ export default function PriorityShiftButtons({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
-      <span className="text-slate-500 font-medium">Reorder Queue:</span>
+    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold font-sans">
+      <span className="text-[var(--color-ink-muted)] font-medium">Reorder Queue:</span>
 
       {/* Elevate to Emergency #1 */}
       <button
         type="button"
         disabled={isUpdating || currentUrgency === 'high'}
         onClick={() => handlePriorityChange('high')}
-        className="bg-red-50 hover:bg-red-100 disabled:opacity-40 text-red-700 font-bold px-3 py-1.5 rounded-lg border border-red-200 transition shadow-sm flex items-center gap-1 active:scale-95"
+        className="badge-high disabled:opacity-40 font-bold px-3 py-1.5 rounded-full transition shadow-sm flex items-center gap-1 active:scale-95 cursor-pointer"
       >
         🚨 #1 Emergency Priority
       </button>
@@ -60,7 +60,7 @@ export default function PriorityShiftButtons({
         type="button"
         disabled={isUpdating || currentUrgency === 'medium'}
         onClick={() => handlePriorityChange('medium')}
-        className="bg-amber-50 hover:bg-amber-100 disabled:opacity-40 text-amber-800 font-bold px-3 py-1.5 rounded-lg border border-amber-200 transition shadow-sm flex items-center gap-1 active:scale-95"
+        className="badge-medium disabled:opacity-40 font-bold px-3 py-1.5 rounded-full transition shadow-sm flex items-center gap-1 active:scale-95 cursor-pointer"
       >
         🟡 Medium Priority
       </button>
@@ -70,13 +70,13 @@ export default function PriorityShiftButtons({
         type="button"
         disabled={isUpdating || currentUrgency === 'low'}
         onClick={() => handlePriorityChange('low')}
-        className="bg-emerald-50 hover:bg-emerald-100 disabled:opacity-40 text-emerald-800 font-bold px-3 py-1.5 rounded-lg border border-emerald-200 transition shadow-sm flex items-center gap-1 active:scale-95"
+        className="badge-low disabled:opacity-40 font-bold px-3 py-1.5 rounded-full transition shadow-sm flex items-center gap-1 active:scale-95 cursor-pointer"
       >
         🟢 Low Priority
       </button>
 
       {isUpdating && (
-        <span className="text-xs text-indigo-600 font-bold animate-pulse ml-1">
+        <span className="text-xs text-[var(--color-violet)] font-bold animate-pulse ml-1">
           ⏳ Updating position...
         </span>
       )}

@@ -73,24 +73,24 @@ export default function PatientVerifyPhonePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-cream)] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[var(--color-cream)] flex items-center justify-center p-4 font-sans">
       <div className="card-surface p-8 max-w-md w-full shadow-lg space-y-6">
         <div className="text-center space-y-2">
           <span className="text-4xl">📲</span>
-          <h1 className="text-2xl font-extrabold text-[var(--color-navy)]">Phone Verification & Record Linking</h1>
+          <h1 className="text-2xl font-heading font-extrabold text-[var(--color-ink)]">Phone Verification & Record Linking</h1>
           <p className="text-xs text-[var(--color-ink-muted)]">
             Verify your mobile number to link any prior WhatsApp or Web Intake medical records to your account
           </p>
         </div>
 
         {infoMsg && (
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-3 rounded-xl text-xs font-bold text-center">
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-3.5 rounded-[var(--radius-md)] text-xs font-bold text-center">
             {infoMsg}
           </div>
         )}
 
         {errorMsg && (
-          <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-xl text-xs font-semibold">
+          <div className="bg-[var(--color-urgent-high-bg)] border border-[var(--color-urgent-high)] text-[var(--color-urgent-high)] p-3.5 rounded-[var(--radius-md)] text-xs font-semibold">
             {errorMsg}
           </div>
         )}
@@ -98,7 +98,7 @@ export default function PatientVerifyPhonePage() {
         {step === 'send' ? (
           <form onSubmit={handleSendOtp} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-[var(--color-navy)] uppercase tracking-wider mb-1">
+              <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1">
                 Full Name (Optional)
               </label>
               <input
@@ -106,12 +106,12 @@ export default function PatientVerifyPhonePage() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="e.g. Ayush Kumar"
-                className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-xl p-3 text-sm focus:outline-none focus:border-[var(--color-blue)]"
+                className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-3 text-sm focus:outline-none focus:border-[var(--color-violet)] text-[var(--color-ink)]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[var(--color-navy)] uppercase tracking-wider mb-1">
+              <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1">
                 Mobile Phone Number *
               </label>
               <p className="text-[11px] text-[var(--color-ink-muted)] mb-1.5">
@@ -123,34 +123,34 @@ export default function PatientVerifyPhonePage() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+91 94704 22303 or 10-digit number"
-                className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-xl p-3 text-sm font-data focus:outline-none focus:border-[var(--color-blue)]"
+                className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-3 text-sm font-data focus:outline-none focus:border-[var(--color-violet)] text-[var(--color-ink)]"
               />
             </div>
 
             <button
               type="submit"
               disabled={isLoading}
-              className="btn-primary w-full py-3 text-sm font-bold text-center flex items-center justify-center gap-2"
+              className="btn-primary w-full py-3.5 text-sm font-bold"
             >
               {isLoading ? 'Sending OTP...' : 'Send Twilio OTP Verification Code →'}
             </button>
           </form>
         ) : (
           <form onSubmit={handleVerifyOtp} className="space-y-4">
-            <div className="bg-[var(--color-blue-soft)] p-3 rounded-xl border border-[var(--color-blue)]/20 text-xs">
+            <div className="bg-[var(--color-violet-soft)] p-3 rounded-[var(--radius-md)] border border-[var(--color-violet)]/20 text-xs">
               <span className="text-[var(--color-ink-muted)] font-medium">OTP Sent to: </span>
-              <strong className="font-data text-[var(--color-navy)]">{phone}</strong>
+              <strong className="font-data text-[var(--color-violet)]">{phone}</strong>
               <button
                 type="button"
                 onClick={() => setStep('send')}
-                className="ml-2 text-[var(--color-blue)] font-bold text-[11px] hover:underline"
+                className="ml-2 text-[var(--color-violet)] font-bold text-[11px] hover:underline"
               >
                 (Change)
               </button>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[var(--color-navy)] uppercase tracking-wider mb-1">
+              <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1">
                 Enter 6-Digit OTP Code *
               </label>
               <input
@@ -160,14 +160,14 @@ export default function PatientVerifyPhonePage() {
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value)}
                 placeholder="123456"
-                className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-xl p-3 text-center text-xl font-bold font-data tracking-widest focus:outline-none focus:border-[var(--color-blue)]"
+                className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-3 text-center text-xl font-bold font-data tracking-widest focus:outline-none focus:border-[var(--color-violet)] text-[var(--color-ink)]"
               />
             </div>
 
             <button
               type="submit"
               disabled={isLoading}
-              className="btn-primary w-full py-3 text-sm font-bold text-center flex items-center justify-center gap-2"
+              className="btn-primary w-full py-3.5 text-sm font-bold"
             >
               {isLoading ? 'Verifying...' : 'Verify OTP & Link Records →'}
             </button>

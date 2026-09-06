@@ -16,11 +16,10 @@ interface Appointment {
 }
 
 export default function WeeklyCalendarView({ appointments }: { appointments: Appointment[] }) {
-  // Generate current week dates (Monday through Sunday)
   const getWeekDates = () => {
     const dates = [];
     const today = new Date();
-    const currentDay = today.getDay(); // 0 is Sun, 1 is Mon
+    const currentDay = today.getDay();
     const distanceToMon = currentDay === 0 ? -6 : 1 - currentDay;
     const monday = new Date(today);
     monday.setDate(today.getDate() + distanceToMon);
@@ -35,7 +34,6 @@ export default function WeeklyCalendarView({ appointments }: { appointments: App
 
   const weekDates = getWeekDates();
 
-  // Group appointments by date string (YYYY-MM-DD)
   const apptsByDate: Record<string, Appointment[]> = {};
   (appointments || []).forEach((a) => {
     if (!a.scheduled_at) return;
@@ -45,12 +43,12 @@ export default function WeeklyCalendarView({ appointments }: { appointments: App
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 font-sans">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-extrabold text-[var(--color-navy)]">
+        <h3 className="text-sm font-heading font-extrabold text-[var(--color-ink)]">
           🗓️ Weekly OPD Appointment Grid
         </h3>
-        <span className="text-[10px] font-bold uppercase bg-blue-100 text-[var(--color-navy)] px-2.5 py-0.5 rounded">
+        <span className="text-[10px] font-bold uppercase bg-[var(--color-violet-soft)] text-[var(--color-violet)] px-2.5 py-0.5 rounded-full border border-[var(--color-violet)]/20">
           7-Day View
         </span>
       </div>
@@ -64,20 +62,20 @@ export default function WeeklyCalendarView({ appointments }: { appointments: App
           return (
             <div
               key={dateStr}
-              className={`p-3 rounded-2xl border transition space-y-2 min-h-[140px] flex flex-col justify-between ${
+              className={`p-3 rounded-[var(--radius-md)] border transition space-y-2 min-h-[140px] flex flex-col justify-between ${
                 isToday
-                  ? 'bg-blue-50/50 border-blue-400 shadow-xs'
-                  : 'bg-white border-slate-200 hover:border-slate-300'
+                  ? 'bg-[var(--color-violet-soft)]/30 border-[var(--color-violet)] shadow-xs'
+                  : 'bg-[var(--color-white)] border-[var(--color-border)]'
               }`}
             >
               <div>
-                <div className="flex items-center justify-between border-b pb-1">
-                  <span className="text-[11px] font-extrabold text-slate-700">
+                <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-1">
+                  <span className="text-[11px] font-extrabold text-[var(--color-ink)]">
                     {dateObj.toLocaleDateString('en-US', { weekday: 'short' })}
                   </span>
                   <span
-                    className={`text-xs font-mono font-bold ${
-                      isToday ? 'bg-[var(--color-navy)] text-white px-1.5 py-0.5 rounded-full' : 'text-slate-500'
+                    className={`text-xs font-data font-bold ${
+                      isToday ? 'bg-[var(--color-violet)] text-white px-2 py-0.5 rounded-full' : 'text-[var(--color-ink-muted)]'
                     }`}
                   >
                     {dateObj.getDate()}
@@ -86,7 +84,7 @@ export default function WeeklyCalendarView({ appointments }: { appointments: App
 
                 <div className="mt-2 space-y-1.5">
                   {dailyAppts.length === 0 ? (
-                    <p className="text-[10px] text-slate-400 italic">No bookings</p>
+                    <p className="text-[10px] text-[var(--color-ink-muted)] italic">No bookings</p>
                   ) : (
                     dailyAppts.map((a) => {
                       const timeStr = new Date(a.scheduled_at).toLocaleTimeString([], {
@@ -99,9 +97,9 @@ export default function WeeklyCalendarView({ appointments }: { appointments: App
                       return (
                         <div
                           key={a.id}
-                          className="p-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-[10px] space-y-0.5"
+                          className="p-1.5 rounded-[var(--radius-md)] bg-[var(--color-teal-soft)] border border-[var(--color-teal-deep)]/20 text-[var(--color-teal-deep)] text-[10px] space-y-0.5"
                         >
-                          <span className="font-bold block font-mono">{timeStr}</span>
+                          <span className="font-bold block font-data">{timeStr}</span>
                           <span className="font-semibold block line-clamp-1">{pName}{rel}</span>
                         </div>
                       );
@@ -111,7 +109,7 @@ export default function WeeklyCalendarView({ appointments }: { appointments: App
               </div>
 
               {dailyAppts.length > 0 && (
-                <span className="text-[9px] font-bold text-slate-500 block text-right">
+                <span className="text-[9px] font-bold text-[var(--color-ink-muted)] block text-right">
                   {dailyAppts.length} appt{dailyAppts.length > 1 ? 's' : ''}
                 </span>
               )}

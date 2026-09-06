@@ -57,31 +57,31 @@ export default function AdminOnboardingPage() {
   return (
     <div className="max-w-4xl mx-auto py-8 px-4 space-y-6">
       {/* Navigation Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4 font-sans text-[var(--color-ink)]">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
+          <h1 className="text-2xl font-heading font-extrabold text-[var(--color-ink)]">
             🏥 Super-Admin Onboarding Portal
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-[var(--color-ink-muted)] mt-1">
             Register new Hospitals, OPD Departments, and RMP Doctors into VaidyaDrishti
           </p>
         </div>
         <div className="flex items-center gap-3">
           <Link
             href="/admin/qr-generator"
-            className="bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-xs font-bold px-3 py-1.5 rounded-lg transition"
+            className="btn-secondary text-xs py-1.5 px-3"
           >
-            🖨️ QR Poster Generator
+            📱 QR Poster Generator
           </Link>
           <Link
             href="/directory"
-            className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold px-3 py-1.5 rounded-lg transition"
+            className="btn-primary text-xs py-1.5 px-3"
           >
             🌐 Public Directory
           </Link>
           <Link
             href="/admin"
-            className="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3 py-1.5 rounded-lg transition"
+            className="btn-dark text-xs py-1.5 px-3"
           >
             ← Admin Dashboard
           </Link>
@@ -89,14 +89,14 @@ export default function AdminOnboardingPage() {
       </div>
 
       {errorMsg && (
-        <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-xl text-sm font-medium">
+        <div className="bg-[var(--color-urgent-high-bg)] border border-[var(--color-urgent-high)] text-[var(--color-urgent-high)] p-4 rounded-[var(--radius-md)] text-sm font-medium">
           {errorMsg}
         </div>
       )}
 
       {/* Success Credentials Display Card */}
       {resultData && (
-        <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-6 shadow-sm space-y-4">
+        <div className="bg-emerald-50 border-2 border-emerald-300 rounded-[var(--radius-lg)] p-6 shadow-sm space-y-4">
           <div className="flex items-center gap-3">
             <span className="text-2xl">🎉</span>
             <div>

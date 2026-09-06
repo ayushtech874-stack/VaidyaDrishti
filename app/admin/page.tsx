@@ -31,41 +31,54 @@ export default async function SuperAdminDashboardPage() {
   const totalDoctors = doctors?.length || 0;
   const totalIntakes = intakes?.length || 0;
   const highIntakes = (intakes || []).filter((i) => i.urgency_level === 'high').length;
+  const pendingDoctorsCount = (doctors || []).filter((d) => d.status === 'pending').length;
 
   return (
     <div className="min-h-screen bg-[var(--color-cream)] text-[var(--color-ink)] pb-12">
       {/* Visually Distinct Navy Super-Admin Top Header Bar */}
-      <header className="bg-[var(--color-navy)] text-white py-6 px-4 border-b border-[var(--color-border-on-navy)] shadow-md">
+      <header className="bg-[var(--color-teal-deep)] text-white py-6 px-4 border-b border-[var(--color-border)] shadow-md">
         <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 bg-[var(--color-blue)]/30 text-[var(--color-blue-soft)] px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-2">
+            <div className="inline-flex items-center gap-2 bg-[var(--color-violet-soft)]/20 text-[var(--color-teal-soft)] px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-2">
               <span>👑 Super-Admin Platform Command Center</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight" style={{ color: '#FFFFFF' }}>
+            <h1 className="text-2xl sm:text-3xl font-heading font-extrabold tracking-tight" style={{ color: '#FFFFFF' }}>
               VaidyaDrishti Executive Portal
             </h1>
-            <p className="text-xs text-[var(--color-blue-soft)] mt-0.5">
+            <p className="text-xs text-[var(--color-teal-soft)] mt-0.5">
               Network-wide multi-tenant management, hospital onboarding, QR posters & directory control
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Link
               href="/admin/onboarding"
-              className="bg-[var(--color-blue)] hover:bg-blue-600 text-white font-extrabold text-xs px-4 py-2.5 rounded-lg transition shadow-sm"
+              className="btn-primary text-xs py-2.5 px-4"
             >
               ➕ Onboard Facility & Doctor
             </Link>
             <Link
               href="/admin/qr-generator"
-              className="bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-xs px-4 py-2.5 rounded-lg transition shadow-sm"
+              className="bg-[var(--color-teal-soft)] text-[var(--color-teal-deep)] hover:bg-white font-extrabold text-xs px-4 py-2.5 rounded-full transition shadow-sm"
             >
-              🖨️ QR Poster Generator
+              📱 Printable QR Generator
             </Link>
             <Link
-              href="/directory"
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-4 py-2.5 rounded-lg transition shadow-sm"
+              href="/admin/doctor-approvals"
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs px-4 py-2.5 rounded-full transition shadow-sm"
             >
-              🌐 Public Directory
+              ⏳ Doctor Approvals ({pendingDoctorsCount})
+            </Link>
+            <Link
+              href="/admin/doctors"
+              className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3.5 py-2 rounded-full border border-white/20 transition"
+            >
+              👨‍⚕️ Manage Doctors
+            </Link>
+            <Link
+              href="/admin/facilities"
+              className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3.5 py-2 rounded-full border border-white/20 transition"
+            >
+              🏥 Manage Clinics
             </Link>
             <SignOutButton />
           </div>

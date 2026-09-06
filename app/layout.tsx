@@ -81,7 +81,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#10304F",
+  themeColor: "#0F3D3E",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -90,7 +90,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="en"
       className={`${manrope.variable} ${inter.variable} ${ibmPlexMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans bg-[var(--color-cream)] text-[var(--color-ink)] selection:bg-[var(--color-blue-soft)] selection:text-[var(--color-navy)]">
+      <body className="min-h-full flex flex-col font-sans bg-[var(--color-cream)] text-[var(--color-ink)] selection:bg-[var(--color-violet-soft)] selection:text-[var(--color-violet)]">
         <LanguageProvider>
           {children}
         </LanguageProvider>

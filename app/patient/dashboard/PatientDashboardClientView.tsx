@@ -50,7 +50,6 @@ export default function PatientDashboardClientView({
     router.push('/patient/login');
   }
 
-  // Handle Profile Update
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
     setIsUpdatingProfile(true);
@@ -79,7 +78,6 @@ export default function PatientDashboardClientView({
     }
   }
 
-  // Handle Adding Medical History
   async function handleAddHistory(e: React.FormEvent) {
     e.preventDefault();
     if (!historyValue.trim()) return;
@@ -109,7 +107,6 @@ export default function PatientDashboardClientView({
     }
   }
 
-  // Handle Deleting Medical History
   async function handleDeleteHistory(id: string) {
     try {
       const res = await fetch('/api/patient/medical-history', {
@@ -125,7 +122,6 @@ export default function PatientDashboardClientView({
     }
   }
 
-  // Handle Document Upload
   async function handleUploadDocument(e: React.FormEvent) {
     e.preventDefault();
     if (!uploadFile) return;
@@ -156,7 +152,6 @@ export default function PatientDashboardClientView({
     }
   }
 
-  // Handle Document Delete
   async function handleDeleteDocument(docId: string) {
     if (!confirm('Are you sure you want to delete this document?')) return;
 
@@ -175,68 +170,62 @@ export default function PatientDashboardClientView({
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-cream)] text-[var(--color-ink)] pb-12">
+    <div className="min-h-screen bg-[var(--color-cream)] text-[var(--color-ink)] pb-12 font-sans">
       {/* Top Navigation Header */}
-      <header className="bg-[var(--color-navy)] text-white py-5 px-4 shadow-md border-b border-[var(--color-border-on-navy)]">
+      <header className="bg-[var(--color-teal-deep)] text-white py-5 px-4 shadow-md">
         <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="text-3xl">📱</span>
             <div>
-              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight" style={{ color: '#FFFFFF' }}>
+              <h1 className="text-xl sm:text-2xl font-heading font-extrabold tracking-tight text-white">
                 My Patient Medical Dashboard
               </h1>
-              <p className="text-xs text-[var(--color-blue-soft)]">
+              <p className="text-xs text-[var(--color-teal-soft)]">
                 Welcome back, <strong className="text-white">{patient.name || 'Patient'}</strong> ({patient.phone})
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
             <Link
               href="/patient/dashboard/new-consultation"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition shadow-md flex items-center gap-1.5"
+              className="btn-primary text-xs py-2 px-3.5 shadow-md flex items-center gap-1.5"
             >
-              ➕ Start New Consultation
+              ➕ Start Consultation
             </Link>
             <Link
               href="/patient/dashboard/timeline"
-              className="bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
+              className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3.5 py-2 rounded-full transition flex items-center gap-1.5"
             >
-              📜 Unified Care Timeline
+              📜 Timeline
             </Link>
             <Link
               href="/patient/dashboard/reminders"
-              className="bg-amber-600 hover:bg-amber-700 text-slate-950 font-extrabold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
+              className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3.5 py-2 rounded-full transition flex items-center gap-1.5"
             >
-              🔔 Care Reminders
+              🔔 Reminders
             </Link>
             <Link
               href="/patient/dashboard/appointments"
-              className="bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
+              className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3.5 py-2 rounded-full transition flex items-center gap-1.5"
             >
               📅 Appointments
             </Link>
             <Link
               href="/patient/dashboard/prescriptions"
-              className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
+              className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3.5 py-2 rounded-full transition flex items-center gap-1.5"
             >
               💊 E-Prescriptions
             </Link>
             <Link
               href="/patient/dashboard/messages"
-              className="bg-[var(--color-navy)] hover:bg-[var(--color-navy)]/90 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm border border-white/20 flex items-center gap-1.5"
+              className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3.5 py-2 rounded-full transition flex items-center gap-1.5"
             >
               💬 Doctor Messages
             </Link>
-            <Link
-              href="/patient/intake"
-              className="bg-[var(--color-blue)] hover:bg-blue-600 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm"
-            >
-              ➕ Submit New Symptom Intake
-            </Link>
             <button
               onClick={handleSignOut}
-              className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-4 py-2 rounded-xl border border-white/20 transition"
+              className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3.5 py-2 rounded-full border border-white/20 transition"
             >
               Sign Out
             </button>
@@ -246,13 +235,13 @@ export default function PatientDashboardClientView({
 
       <main className="max-w-6xl mx-auto py-8 px-4 space-y-6">
         {/* Navigation Tabs */}
-        <div className="card-surface p-2 shadow-sm flex flex-wrap items-center gap-2">
+        <div className="card-surface p-2 shadow-sm flex flex-wrap items-center gap-2 rounded-[var(--radius-full)]">
           <button
             onClick={() => setActiveTab('visits')}
-            className={`flex-1 min-w-[140px] py-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 ${
+            className={`flex-1 min-w-[140px] py-3 rounded-full text-xs font-bold transition flex items-center justify-center gap-2 ${
               activeTab === 'visits'
-                ? 'bg-[var(--color-navy)] text-white shadow'
-                : 'text-[var(--color-ink)] hover:bg-[var(--color-blue-soft)]'
+                ? 'bg-[var(--color-violet)] text-white shadow'
+                : 'text-[var(--color-ink)] hover:bg-[var(--color-teal-soft)]'
             }`}
           >
             <span>📋 My Visits ({intakes.length})</span>
@@ -260,10 +249,10 @@ export default function PatientDashboardClientView({
 
           <button
             onClick={() => setActiveTab('profile')}
-            className={`flex-1 min-w-[140px] py-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 ${
+            className={`flex-1 min-w-[140px] py-3 rounded-full text-xs font-bold transition flex items-center justify-center gap-2 ${
               activeTab === 'profile'
-                ? 'bg-[var(--color-navy)] text-white shadow'
-                : 'text-[var(--color-ink)] hover:bg-[var(--color-blue-soft)]'
+                ? 'bg-[var(--color-violet)] text-white shadow'
+                : 'text-[var(--color-ink)] hover:bg-[var(--color-teal-soft)]'
             }`}
           >
             <span>👤 My Profile</span>
@@ -271,10 +260,10 @@ export default function PatientDashboardClientView({
 
           <button
             onClick={() => setActiveTab('history')}
-            className={`flex-1 min-w-[140px] py-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 ${
+            className={`flex-1 min-w-[140px] py-3 rounded-full text-xs font-bold transition flex items-center justify-center gap-2 ${
               activeTab === 'history'
-                ? 'bg-[var(--color-navy)] text-white shadow'
-                : 'text-[var(--color-ink)] hover:bg-[var(--color-blue-soft)]'
+                ? 'bg-[var(--color-violet)] text-white shadow'
+                : 'text-[var(--color-ink)] hover:bg-[var(--color-teal-soft)]'
             }`}
           >
             <span>🩺 Medical History ({historyList.length})</span>
@@ -282,10 +271,10 @@ export default function PatientDashboardClientView({
 
           <button
             onClick={() => setActiveTab('documents')}
-            className={`flex-1 min-w-[140px] py-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 ${
+            className={`flex-1 min-w-[140px] py-3 rounded-full text-xs font-bold transition flex items-center justify-center gap-2 ${
               activeTab === 'documents'
-                ? 'bg-[var(--color-navy)] text-white shadow'
-                : 'text-[var(--color-ink)] hover:bg-[var(--color-blue-soft)]'
+                ? 'bg-[var(--color-violet)] text-white shadow'
+                : 'text-[var(--color-ink)] hover:bg-[var(--color-teal-soft)]'
             }`}
           >
             <span>📁 My Documents ({documentsList.length})</span>
@@ -296,7 +285,7 @@ export default function PatientDashboardClientView({
         {activeTab === 'visits' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-extrabold text-[var(--color-navy)]">
+              <h2 className="text-lg font-heading font-extrabold text-[var(--color-ink)]">
                 Past Consultation & OPD Intakes ({intakes.length})
               </h2>
               <span className="text-xs text-[var(--color-ink-muted)]">Read-only patient record view</span>
@@ -305,9 +294,9 @@ export default function PatientDashboardClientView({
             {intakes.length === 0 ? (
               <div className="card-surface p-12 text-center space-y-3">
                 <span className="text-4xl">📋</span>
-                <h3 className="text-base font-bold text-[var(--color-navy)]">No Past Visits Found</h3>
+                <h3 className="text-base font-heading font-extrabold text-[var(--color-ink)]">No Past Visits Found</h3>
                 <p className="text-xs text-[var(--color-ink-muted)] max-w-md mx-auto">
-                  You have not submitted any symptoms or OPD intakes yet. Scan a hospital QR code or click below to submit your first grievance.
+                  You have not submitted any symptoms or OPD intakes yet.
                 </p>
                 <Link href="/patient/intake" className="btn-primary inline-block text-xs py-2.5 px-5">
                   Submit Symptom Intake Now
@@ -320,13 +309,13 @@ export default function PatientDashboardClientView({
                   const urgency = (item.urgency_level || 'low').toLowerCase();
 
                   return (
-                    <div key={item.id} className="card-surface p-5 shadow-sm space-y-3 hover:border-[var(--color-blue)]">
+                    <div key={item.id} className="card-surface p-5 shadow-sm space-y-3 hover:border-[var(--color-violet)]">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <span className="text-[10px] font-bold text-[var(--color-ink-muted)] block">
+                          <span className="text-[10px] font-data text-[var(--color-ink-muted)] block">
                             📅 {new Date(item.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                           </span>
-                          <h3 className="text-base font-extrabold text-[var(--color-navy)] mt-0.5">
+                          <h3 className="text-base font-heading font-extrabold text-[var(--color-ink)] mt-0.5">
                             {item.clinics?.name || 'OPD Medical Center'}
                           </h3>
                           <p className="text-xs text-[var(--color-ink-muted)] font-medium">
@@ -335,7 +324,7 @@ export default function PatientDashboardClientView({
                         </div>
 
                         <span
-                          className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md uppercase shrink-0 ${
+                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase shrink-0 ${
                             urgency === 'high'
                               ? 'badge-high'
                               : urgency === 'medium'
@@ -347,9 +336,8 @@ export default function PatientDashboardClientView({
                         </span>
                       </div>
 
-                      {/* Primary Symptoms */}
-                      <div className="bg-[var(--color-cream)] p-3 rounded-xl border border-[var(--color-border)] space-y-1">
-                        <span className="text-[11px] font-bold text-[var(--color-navy)] uppercase tracking-wider block">
+                      <div className="bg-[var(--color-cream)] p-3 rounded-[var(--radius-md)] border border-[var(--color-border)] space-y-1">
+                        <span className="text-[11px] font-bold text-[var(--color-ink)] uppercase tracking-wider block">
                           Reported Symptoms Summary:
                         </span>
                         <p className="text-xs text-[var(--color-ink)] italic line-clamp-3">
@@ -358,7 +346,7 @@ export default function PatientDashboardClientView({
                         {symptoms.length > 0 && (
                           <div className="flex flex-wrap gap-1 pt-1">
                             {symptoms.map((s: string, i: number) => (
-                              <span key={i} className="bg-white border border-[var(--color-border)] text-[var(--color-navy)] text-[10px] font-bold px-2 py-0.5 rounded">
+                              <span key={i} className="bg-white border border-[var(--color-border)] text-[var(--color-ink)] text-[10px] font-bold px-2 py-0.5 rounded">
                                 {s}
                               </span>
                             ))}
@@ -368,7 +356,7 @@ export default function PatientDashboardClientView({
 
                       <div className="flex items-center justify-between text-xs pt-1 border-t border-[var(--color-border)]">
                         <span className="text-[var(--color-ink-muted)]">Status:</span>
-                        <span className="font-bold text-[var(--color-navy)] uppercase text-[11px] bg-[var(--color-blue-soft)] px-2.5 py-0.5 rounded">
+                        <span className="font-bold text-[var(--color-violet)] uppercase text-[11px] bg-[var(--color-violet-soft)] px-2.5 py-0.5 rounded-full">
                           {item.status?.replace('_', ' ') || 'Pending Review'}
                         </span>
                       </div>
@@ -384,19 +372,19 @@ export default function PatientDashboardClientView({
         {activeTab === 'profile' && (
           <div className="card-surface p-6 max-w-xl mx-auto shadow-sm space-y-6">
             <div className="border-b border-[var(--color-border)] pb-3">
-              <h2 className="text-lg font-extrabold text-[var(--color-navy)]">My Patient Profile</h2>
+              <h2 className="text-lg font-heading font-extrabold text-[var(--color-ink)]">My Patient Profile</h2>
               <p className="text-xs text-[var(--color-ink-muted)]">Update your verified personal demographics</p>
             </div>
 
             {profileMsg && (
-              <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-3 rounded-xl text-xs font-bold">
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-3 rounded-[var(--radius-md)] text-xs font-bold">
                 {profileMsg}
               </div>
             )}
 
             <form onSubmit={handleSaveProfile} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-[var(--color-navy)] uppercase tracking-wider mb-1">
+                <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1">
                   Full Name *
                 </label>
                 <input
@@ -404,13 +392,13 @@ export default function PatientDashboardClientView({
                   required
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-xl p-3 text-sm focus:outline-none focus:border-[var(--color-blue)]"
+                  className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-3 text-sm focus:outline-none focus:border-[var(--color-violet)] text-[var(--color-ink)]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-[var(--color-navy)] uppercase tracking-wider mb-1">
+                  <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1">
                     Age (Years) *
                   </label>
                   <input
@@ -420,18 +408,18 @@ export default function PatientDashboardClientView({
                     max={120}
                     value={editAge}
                     onChange={(e) => setEditAge(e.target.value)}
-                    className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-xl p-3 text-sm focus:outline-none focus:border-[var(--color-blue)]"
+                    className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-3 text-sm focus:outline-none focus:border-[var(--color-violet)] text-[var(--color-ink)]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[var(--color-navy)] uppercase tracking-wider mb-1">
+                  <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1">
                     Sex / Gender *
                   </label>
                   <select
                     value={editGender}
                     onChange={(e) => setEditGender(e.target.value)}
-                    className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-xl p-3 text-sm focus:outline-none focus:border-[var(--color-blue)]"
+                    className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-3 text-sm focus:outline-none focus:border-[var(--color-violet)] text-[var(--color-ink)]"
                   >
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
@@ -441,14 +429,14 @@ export default function PatientDashboardClientView({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[var(--color-navy)] uppercase tracking-wider mb-1">
+                <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1">
                   Verified Mobile Phone (Read-Only)
                 </label>
                 <input
                   type="text"
                   disabled
                   value={patient.phone}
-                  className="w-full bg-[var(--color-cream-deep)] border border-[var(--color-border)] rounded-xl p-3 text-sm font-data text-[var(--color-ink-muted)] cursor-not-allowed"
+                  className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-3 text-sm font-data text-[var(--color-ink-muted)] cursor-not-allowed opacity-75"
                 />
               </div>
 
@@ -466,27 +454,26 @@ export default function PatientDashboardClientView({
         {/* TAB 3: MEDICAL HISTORY */}
         {activeTab === 'history' && (
           <div className="space-y-6">
-            <div className="card-surface p-6 shadow-sm space-y-4 border-2 border-indigo-200 bg-gradient-to-r from-white to-indigo-50/30">
-              <div className="flex items-center gap-3 text-[var(--color-navy)]">
+            <div className="card-surface p-6 shadow-sm space-y-4 border-2 border-[var(--color-violet)]/30 bg-[var(--color-violet-soft)]/20">
+              <div className="flex items-center gap-3 text-[var(--color-ink)]">
                 <span className="text-3xl">🩺</span>
                 <div>
-                  <h2 className="text-lg font-extrabold">Self-Reported Medical History</h2>
+                  <h2 className="text-lg font-heading font-extrabold">Self-Reported Medical History</h2>
                   <p className="text-xs text-[var(--color-ink-muted)]">
-                    Add known allergies, chronic conditions, current medications, or past surgeries. This data is self-reported by you and kept completely separate from AI structuring pipelines.
+                    Add known allergies, chronic conditions, current medications, or past surgeries.
                   </p>
                 </div>
               </div>
 
-              {/* Add New History Form */}
               <form onSubmit={handleAddHistory} className="flex flex-wrap items-end gap-3 pt-2">
                 <div className="min-w-[180px]">
-                  <label className="block text-[11px] font-bold text-[var(--color-navy)] uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1">
                     Category Type *
                   </label>
                   <select
                     value={historyFieldType}
                     onChange={(e) => setHistoryFieldType(e.target.value)}
-                    className="w-full bg-white border border-[var(--color-border)] rounded-xl p-2.5 text-xs font-bold focus:outline-none focus:border-[var(--color-blue)]"
+                    className="w-full bg-white border border-[var(--color-border)] rounded-[var(--radius-md)] p-2.5 text-xs font-bold focus:outline-none focus:border-[var(--color-violet)]"
                   >
                     <option value="chronic_condition">🩸 Chronic Condition (Diabetes, BP, Asthma)</option>
                     <option value="allergy">⚠️ Known Allergy (Penicillin, Food, Dust)</option>
@@ -496,7 +483,7 @@ export default function PatientDashboardClientView({
                 </div>
 
                 <div className="flex-1 min-w-[240px]">
-                  <label className="block text-[11px] font-bold text-[var(--color-navy)] uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1">
                     Details / Description *
                   </label>
                   <input
@@ -504,8 +491,8 @@ export default function PatientDashboardClientView({
                     required
                     value={historyValue}
                     onChange={(e) => setHistoryValue(e.target.value)}
-                    placeholder="e.g. Type 2 Diabetes for 5 years, Metformin 500mg daily..."
-                    className="w-full bg-white border border-[var(--color-border)] rounded-xl p-2.5 text-xs focus:outline-none focus:border-[var(--color-blue)]"
+                    placeholder="e.g. Type 2 Diabetes for 5 years..."
+                    className="w-full bg-white border border-[var(--color-border)] rounded-[var(--radius-md)] p-2.5 text-xs focus:outline-none focus:border-[var(--color-violet)]"
                   />
                 </div>
 
@@ -519,29 +506,28 @@ export default function PatientDashboardClientView({
               </form>
             </div>
 
-            {/* List of Self-Reported Entries */}
             <div className="card-surface p-6 shadow-sm space-y-4">
-              <h3 className="text-sm font-bold text-[var(--color-navy)] uppercase tracking-wider border-b border-[var(--color-border)] pb-2">
+              <h3 className="text-sm font-heading font-extrabold text-[var(--color-ink)] uppercase tracking-wider border-b border-[var(--color-border)] pb-2">
                 My Medical History Records ({historyList.length})
               </h3>
 
               {historyList.length === 0 ? (
                 <p className="text-xs text-[var(--color-ink-muted)] italic text-center py-4">
-                  No medical history records added yet. Use the form above to add allergies, chronic conditions, or medications.
+                  No medical history records added yet.
                 </p>
               ) : (
                 <div className="divide-y divide-[var(--color-border)]">
                   {historyList.map((item) => (
                     <div key={item.id} className="py-3 flex items-center justify-between gap-4">
                       <div>
-                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-[var(--color-blue-soft)] text-[var(--color-navy)] mb-1 inline-block">
+                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[var(--color-violet-soft)] text-[var(--color-violet)] mb-1 inline-block">
                           {item.field_type?.replace('_', ' ')}
                         </span>
                         <p className="text-sm font-bold text-[var(--color-ink)]">{item.value}</p>
                       </div>
                       <button
                         onClick={() => handleDeleteHistory(item.id)}
-                        className="text-xs text-red-600 hover:text-red-800 font-bold px-2 py-1 hover:bg-red-50 rounded transition"
+                        className="text-xs text-red-600 hover:text-red-800 font-bold px-2 py-1 hover:bg-red-50 rounded transition cursor-pointer"
                       >
                         🗑️ Remove
                       </button>
@@ -556,26 +542,25 @@ export default function PatientDashboardClientView({
         {/* TAB 4: MY DOCUMENTS */}
         {activeTab === 'documents' && (
           <div className="space-y-6">
-            {/* Document Upload Box */}
-            <div className="card-surface p-6 shadow-sm space-y-4 border-2 border-emerald-200 bg-gradient-to-r from-white to-emerald-50/30">
-              <div className="flex items-center gap-3 text-[var(--color-navy)]">
+            <div className="card-surface p-6 shadow-sm space-y-4 border-2 border-[var(--color-teal-deep)]/30 bg-[var(--color-teal-soft)]/20">
+              <div className="flex items-center gap-3 text-[var(--color-ink)]">
                 <span className="text-3xl">📁</span>
                 <div>
-                  <h2 className="text-lg font-extrabold">Upload Past Medical Reports & Prescriptions</h2>
+                  <h2 className="text-lg font-heading font-extrabold">Upload Past Medical Reports & Prescriptions</h2>
                   <p className="text-xs text-[var(--color-ink-muted)]">
-                    Upload past lab reports, scan results, or prescriptions (PDF, JPG, PNG — max 10MB per file). Stored securely in a private storage bucket.
+                    Upload past lab reports, scan results, or prescriptions (PDF, JPG, PNG — max 10MB per file). Stored securely.
                   </p>
                 </div>
               </div>
 
               {uploadMsg && (
-                <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-3 rounded-xl text-xs font-bold">
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-3 rounded-[var(--radius-md)] text-xs font-bold">
                   {uploadMsg}
                 </div>
               )}
 
               {uploadErr && (
-                <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-xl text-xs font-bold">
+                <div className="bg-[var(--color-urgent-high-bg)] border border-[var(--color-urgent-high)] text-[var(--color-urgent-high)] p-3 rounded-[var(--radius-md)] text-xs font-bold">
                   {uploadErr}
                 </div>
               )}
@@ -585,7 +570,7 @@ export default function PatientDashboardClientView({
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png"
                   onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                  className="block text-xs text-[var(--color-ink-muted)] file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[var(--color-navy)] file:text-white hover:file:opacity-90"
+                  className="block text-xs text-[var(--color-ink-muted)] file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-[var(--color-violet)] file:text-white hover:file:opacity-90"
                 />
 
                 <button
@@ -598,25 +583,24 @@ export default function PatientDashboardClientView({
               </form>
             </div>
 
-            {/* List of Uploaded Documents */}
             <div className="card-surface p-6 shadow-sm space-y-4">
-              <h3 className="text-sm font-bold text-[var(--color-navy)] uppercase tracking-wider border-b border-[var(--color-border)] pb-2">
+              <h3 className="text-sm font-heading font-extrabold text-[var(--color-ink)] uppercase tracking-wider border-b border-[var(--color-border)] pb-2">
                 Uploaded Records & Prescriptions ({documentsList.length})
               </h3>
 
               {documentsList.length === 0 ? (
                 <p className="text-xs text-[var(--color-ink-muted)] italic text-center py-4">
-                  No documents uploaded yet. Upload past lab reports or prescriptions above.
+                  No documents uploaded yet.
                 </p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                   {documentsList.map((doc) => (
-                    <div key={doc.id} className="card-surface p-4 space-y-2 border border-[var(--color-border)] flex flex-col justify-between">
+                    <div key={doc.id} className="card-surface p-4 space-y-2 flex flex-col justify-between">
                       <div>
-                        <span className="text-[10px] font-bold text-[var(--color-blue)] uppercase font-data block">
+                        <span className="text-[10px] font-bold text-[var(--color-violet)] uppercase font-data block">
                           📄 {doc.file_type?.includes('pdf') ? 'PDF Document' : 'Image File'}
                         </span>
-                        <h4 className="text-xs font-bold text-[var(--color-navy)] truncate mt-1">
+                        <h4 className="text-xs font-bold text-[var(--color-ink)] truncate mt-1">
                           {doc.file_name}
                         </h4>
                         <span className="text-[10px] text-[var(--color-ink-muted)] block">
@@ -625,7 +609,7 @@ export default function PatientDashboardClientView({
                       </div>
 
                       <div className="pt-2 border-t border-[var(--color-border)] flex items-center justify-between">
-                        <span className="text-[10px] bg-[var(--color-blue-soft)] text-[var(--color-navy)] px-2 py-0.5 rounded font-bold">
+                        <span className="text-[10px] bg-[var(--color-violet-soft)] text-[var(--color-violet)] px-2 py-0.5 rounded-full font-bold">
                           🔒 Private Storage
                         </span>
                         <button
