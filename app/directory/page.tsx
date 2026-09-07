@@ -185,7 +185,7 @@ export default function PublicDirectoryPage() {
             <div className="absolute top-0 right-0 -mr-16 -mt-16 w-72 h-72 rounded-full bg-[var(--color-violet)]/20 blur-3xl pointer-events-none"></div>
 
             <div className="space-y-4">
-              <div className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-bold text-[var(--color-teal-soft)] border border-white/10">
+              <div className="inline-flex items-center gap-1.5 bg-white text-[var(--color-teal-deep)] px-3.5 py-1 rounded-full text-[11px] font-extrabold shadow-md border border-white/20">
                 <span>📍 Nationwide Practice Location Search</span>
               </div>
 
@@ -193,13 +193,13 @@ export default function PublicDirectoryPage() {
                 Find RMP Specialists Near You
               </h2>
 
-              <p className="text-xs text-[var(--color-teal-soft)]/90 leading-relaxed">
+              <p className="text-xs text-white font-medium leading-relaxed opacity-100">
                 Search over 1,200 Indian cities or auto-detect your location to discover verified doctors and clinics.
               </p>
 
               {/* Autocomplete Search Controls */}
               <div className="space-y-3 pt-2">
-                <label className="block text-[11px] font-bold text-white uppercase tracking-wider">
+                <label className="block text-[11px] font-extrabold text-white uppercase tracking-wider">
                   Select Practice Location *
                 </label>
 
