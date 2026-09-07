@@ -97,35 +97,32 @@ export default function PatientVerifyPhonePage() {
 
         {step === 'send' ? (
           <form onSubmit={handleSendOtp} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1">
-                Full Name (Optional)
-              </label>
-              <input
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="e.g. Ayush Kumar"
-                className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-3 text-sm focus:outline-none focus:border-[var(--color-violet)] text-[var(--color-ink)]"
-              />
-            </div>
+              <div>
+                <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1.5">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Enter your full name"
+                  className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-3 text-xs font-bold text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-violet)]"
+                />
+              </div>
 
-            <div>
-              <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1">
-                Mobile Phone Number *
-              </label>
-              <p className="text-[11px] text-[var(--color-ink-muted)] mb-1.5">
-                Use the same phone number you used for WhatsApp or QR intake
-              </p>
-              <input
-                type="tel"
-                required
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+91 94704 22303 or 10-digit number"
-                className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-3 text-sm font-data focus:outline-none focus:border-[var(--color-violet)] text-[var(--color-ink)]"
-              />
-            </div>
+              <div>
+                <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1.5">
+                  Mobile Number (India +91) *
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Enter 10-digit mobile number"
+                  className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-3 text-xs font-bold text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-violet)] font-data"
+                />
+              </div>
 
             <button
               type="submit"

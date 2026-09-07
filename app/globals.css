@@ -120,14 +120,14 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-primary {
   background-color: var(--color-violet);
-  color: var(--color-white);
+  color: #FFFFFF;
   border-radius: var(--radius-full);
   font-family: var(--font-body);
-  font-weight: 600;
+  font-weight: 700;
   padding: 10px 22px;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   display: inline-flex;
-  items-center: center;
+  align-items: center;
   justify-content: center;
 }
 .btn-primary:hover {
@@ -141,14 +141,14 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-dark {
   background-color: var(--color-teal-deep);
-  color: var(--color-white);
+  color: #FFFFFF;
   border-radius: var(--radius-full);
   font-family: var(--font-body);
-  font-weight: 600;
+  font-weight: 700;
   padding: 10px 22px;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   display: inline-flex;
-  items-center: center;
+  align-items: center;
   justify-content: center;
 }
 .btn-dark:hover {
@@ -159,15 +159,15 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-secondary {
   background-color: var(--color-white);
-  color: var(--color-ink);
+  color: var(--color-teal-deep);
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-full);
   font-family: var(--font-body);
-  font-weight: 600;
+  font-weight: 700;
   padding: 10px 22px;
   transition: all 0.2s ease;
   display: inline-flex;
-  items-center: center;
+  align-items: center;
   justify-content: center;
 }
 .btn-secondary:hover {

@@ -7,23 +7,23 @@ export default function LanguageToggle() {
   const { locale, setLocale, t } = useLanguage();
 
   return (
-    <div className="inline-flex items-center gap-0.5 bg-[var(--color-cream)] p-1 rounded-full border border-[var(--color-border)] text-xs font-bold shadow-xs">
+    <div className="inline-flex items-center gap-1 bg-[var(--color-cream)] p-1 rounded-full border border-[var(--color-border)] text-xs font-bold shadow-xs">
       <button
         onClick={() => setLocale('en')}
-        className={`px-2.5 py-0.5 rounded-full transition-all text-xs font-extrabold cursor-pointer ${
+        className={`px-3 py-1 rounded-full transition-all text-xs font-extrabold cursor-pointer ${
           locale === 'en'
             ? 'bg-[var(--color-violet)] text-white shadow-xs'
-            : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+            : 'text-[var(--color-ink)] hover:text-[var(--color-violet)]'
         }`}
       >
         EN
       </button>
       <button
         onClick={() => setLocale('hi')}
-        className={`px-2.5 py-0.5 rounded-full transition-all text-xs font-extrabold cursor-pointer ${
+        className={`px-3 py-1 rounded-full transition-all text-xs font-extrabold cursor-pointer ${
           locale === 'hi'
             ? 'bg-[var(--color-violet)] text-white shadow-xs'
-            : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+            : 'text-[var(--color-ink)] hover:text-[var(--color-violet)]'
         }`}
       >
         HI

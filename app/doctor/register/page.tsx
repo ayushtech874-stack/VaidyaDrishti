@@ -149,7 +149,7 @@ export default function DoctorRegisterPage() {
                   required
                   value={formData.name}
                   onChange={handleChange}
-                  placeholder="e.g. Dr. Rajesh Sharma"
+                  placeholder="Enter your full name"
                   className="w-full p-2.5 text-xs border border-[var(--color-border)] rounded-[var(--radius-md)] bg-[var(--color-cream)] font-medium text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-violet)]"
                 />
               </div>
@@ -162,7 +162,7 @@ export default function DoctorRegisterPage() {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  placeholder="doctor@hospital.com"
+                  placeholder="Enter your email address"
                   className="w-full p-2.5 text-xs border border-[var(--color-border)] rounded-[var(--radius-md)] bg-[var(--color-cream)] font-medium text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-violet)] font-data"
                 />
               </div>
@@ -177,7 +177,7 @@ export default function DoctorRegisterPage() {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  placeholder="••••••••"
+                  placeholder="Enter your password"
                   className="w-full p-2.5 text-xs border border-[var(--color-border)] rounded-[var(--radius-md)] bg-[var(--color-cream)] font-medium text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-violet)]"
                 />
               </div>
@@ -190,7 +190,7 @@ export default function DoctorRegisterPage() {
                   required
                   value={formData.phone}
                   onChange={handleChange}
-                  placeholder="+919876543210"
+                  placeholder="Enter 10-digit mobile number"
                   className="w-full p-2.5 text-xs border border-[var(--color-border)] rounded-[var(--radius-md)] bg-[var(--color-cream)] font-medium text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-violet)] font-data"
                 />
               </div>
@@ -205,8 +205,8 @@ export default function DoctorRegisterPage() {
                   required
                   value={formData.rmp_registration_number}
                   onChange={handleChange}
-                  placeholder="e.g. MCI-2018-98745"
-                  className="w-full p-2.5 text-xs border border-[var(--color-border)] rounded-[var(--radius-md)] bg-[var(--color-cream)] font-medium text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-violet)] font-data"
+                  placeholder="Enter RMP registration number"
+                  className="w-full p-2.5 text-xs border border-[var(--color-border)] rounded-[var(--radius-md)] bg-[var(--color-cream)] font-medium text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-violet)] font-data uppercase"
                 />
               </div>
 
@@ -234,7 +234,7 @@ export default function DoctorRegisterPage() {
                 name="qualifications"
                 value={formData.qualifications}
                 onChange={handleChange}
-                placeholder="e.g. MBBS, MD (General Medicine)"
+                placeholder="Enter medical qualifications"
                 className="w-full p-2.5 text-xs border border-[var(--color-border)] rounded-[var(--radius-md)] bg-[var(--color-cream)] font-medium text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-violet)]"
               />
             </div>

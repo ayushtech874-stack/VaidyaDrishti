@@ -125,14 +125,14 @@ export default function PatientIntakePage() {
                   required
                   value={patientName}
                   onChange={(e) => setPatientName(e.target.value)}
-                  placeholder="e.g. Ramesh Kumar"
-                  className="w-full bg-white border border-[var(--color-border)] rounded-xl p-3.5 text-base text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-blue)]"
+                  placeholder="Enter your full name"
+                  className="w-full bg-white border border-[var(--color-border)] rounded-xl p-3.5 text-base text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-violet)]"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-[var(--color-navy)] uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1.5">
                     Age (Years) *
                   </label>
                   <input
@@ -142,19 +142,19 @@ export default function PatientIntakePage() {
                     max={120}
                     value={age}
                     onChange={(e) => setAge(e.target.value)}
-                    placeholder="e.g. 34"
-                    className="w-full bg-white border border-[var(--color-border)] rounded-xl p-3.5 text-base text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-blue)] font-data"
+                    placeholder="Enter age in years"
+                    className="w-full bg-white border border-[var(--color-border)] rounded-xl p-3.5 text-base text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-violet)] font-data"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[var(--color-navy)] uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1.5">
                     Gender *
                   </label>
                   <select
                     value={gender}
                     onChange={(e) => setGender(e.target.value)}
-                    className="w-full bg-white border border-[var(--color-border)] rounded-xl p-3.5 text-base text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-blue)] font-semibold"
+                    className="w-full bg-white border border-[var(--color-border)] rounded-xl p-3.5 text-base text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-violet)] font-semibold"
                   >
                     <option value="Male">Male (पुरुष)</option>
                     <option value="Female">Female (महिला)</option>
@@ -164,7 +164,7 @@ export default function PatientIntakePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[var(--color-navy)] uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1.5">
                   Describe Symptoms & Problem (कष्ट विवरण) *
                 </label>
                 <textarea
@@ -172,8 +172,8 @@ export default function PatientIntakePage() {
                   rows={4}
                   value={symptoms}
                   onChange={(e) => setSymptoms(e.target.value)}
-                  placeholder="e.g. Having fever for 3 days, chest heaviness, severe headache..."
-                  className="w-full bg-white border border-[var(--color-border)] rounded-xl p-3.5 text-base text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-blue)]"
+                  placeholder="Describe your medical symptoms and health concern..."
+                  className="w-full bg-white border border-[var(--color-border)] rounded-xl p-3.5 text-base text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-violet)]"
                 />
               </div>
             </div>

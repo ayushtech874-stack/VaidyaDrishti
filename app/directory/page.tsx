@@ -107,95 +107,122 @@ export default function PublicDirectoryPage() {
       <section className="py-8 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
           
-          {/* Left Hero Panel (Light Cream Panel) */}
-          <div className="md:col-span-7 bg-[var(--color-white)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-8 sm:p-12 shadow-[var(--shadow-card)] flex flex-col justify-between">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[var(--color-violet-soft)] text-[var(--color-violet)] text-xs font-bold tracking-wide mb-6">
-                <span>✨ RMP Tele-Triage & Verified Directory</span>
-              </div>
-
-              <h1 className="text-3xl sm:text-5xl font-heading font-extrabold text-[var(--color-ink)] leading-tight tracking-tight">
-                Find Top Healthcare Specialists Near You
-              </h1>
-
-              <p className="text-sm sm:text-base text-[var(--color-ink-muted)] mt-3 leading-relaxed max-w-xl">
-                Discover accredited RMP practitioners, specialty clinics, and hospitals in Tier-2 & Tier-3 locations across India.
-              </p>
-            </div>
-
-            {/* Nationwide City Search Autocomplete Controls */}
-            <div className="mt-8 space-y-3 pt-6 border-t border-[var(--color-border)]">
-              <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider">
-                Select Practice Location (Search 1,200+ Indian Cities) *
-              </label>
-              
-              <CitySearchAutocomplete
-                selectedCity={selectedCity}
-                onSelectCity={(cityName) => {
-                  setSelectedCity(cityName);
-                  setCustomLocation('');
-                }}
-              />
-
-              <input
-                type="text"
-                placeholder="Or type custom Pincode / Landmark..."
-                value={customLocation}
-                onChange={(e) => setCustomLocation(e.target.value)}
-                className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] text-[var(--color-ink)] text-xs font-medium rounded-[var(--radius-md)] px-4 py-2.5 focus:outline-none focus:border-[var(--color-violet)] placeholder:text-[var(--color-ink-faint)]"
-              />
-            </div>
-          </div>
-
-          {/* Right Hero Panel (Consistent Branding + Location Map-Pin Visual) */}
-          <div className="hidden md:flex md:col-span-5 bg-[var(--color-teal-deep)] text-white rounded-[var(--radius-lg)] p-8 sm:p-10 relative overflow-hidden flex-col justify-between shadow-xl">
-            <div className="absolute top-0 right-0 -mr-16 -mt-16 w-72 h-72 rounded-full bg-[var(--color-violet)]/20 blur-3xl pointer-events-none"></div>
-
+          {/* Left Hero Panel (VaidyaDrishti Branding & Core Features) */}
+          <div className="md:col-span-7 bg-[var(--color-white)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-8 sm:p-10 shadow-[var(--shadow-card)] flex flex-col justify-between space-y-6">
             <div>
               {/* Brand Header */}
               <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center p-1 shadow-sm">
-                    <Image src="/icon.svg" alt="VaidyaDrishti" width={24} height={24} className="object-contain" />
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[var(--color-teal-deep)] flex items-center justify-center p-2 shadow-sm">
+                    <Image src="/icon.svg" alt="VaidyaDrishti" width={28} height={28} className="object-contain" />
                   </div>
-                  <span className="text-lg font-heading font-extrabold text-white tracking-tight">
-                    VaidyaDrishti
-                  </span>
+                  <div>
+                    <span className="text-xl font-heading font-extrabold text-[var(--color-teal-deep)] tracking-tight block">
+                      VaidyaDrishti
+                    </span>
+                    <span className="text-[10px] font-bold text-[var(--color-violet)] uppercase tracking-wider">
+                      RMP Tele-Triage & Verified Directory
+                    </span>
+                  </div>
                 </div>
-                <div className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-bold text-[var(--color-teal-soft)] border border-white/10">
-                  <span>🛡️ DPDP Act 2023 Compliant</span>
+
+                <div className="inline-flex items-center gap-1.5 bg-[var(--color-violet-soft)] text-[var(--color-violet)] px-3 py-1 rounded-full text-[11px] font-extrabold border border-[var(--color-violet)]/20">
+                  <span>✨ Tier-2 & Tier-3 Health Network</span>
                 </div>
               </div>
 
-              <h2 className="text-2xl lg:text-3xl font-heading font-extrabold text-white mt-2 leading-tight">
-                Find Accredited RMP Healthcare Near You Across India
+              <h1 className="text-2xl sm:text-4xl font-heading font-extrabold text-[var(--color-ink)] leading-tight tracking-tight mt-2">
+                Empowering Healthcare Across India with AI Tele-Triage
+              </h1>
+
+              <p className="text-xs sm:text-sm text-[var(--color-ink-muted)] mt-2.5 leading-relaxed max-w-xl font-medium">
+                VaidyaDrishti connects accredited RMP practitioners, specialty clinics, and patients through 8-language voice intake, automated triage, and instant medical history access.
+              </p>
+            </div>
+
+            {/* Core Features Grid (4 Cards) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-[var(--color-border)]">
+              <div className="bg-[var(--color-cream)] p-3.5 rounded-[var(--radius-md)] border border-[var(--color-border)] space-y-1">
+                <div className="flex items-center gap-2 font-heading font-extrabold text-xs text-[var(--color-teal-deep)]">
+                  <span>🎙️</span> 8-Language Voice Intake
+                </div>
+                <p className="text-[11px] text-[var(--color-ink-muted)] leading-normal">
+                  Instant Whisper ASR voice transcription & Groq AI triage pre-screening.
+                </p>
+              </div>
+
+              <div className="bg-[var(--color-cream)] p-3.5 rounded-[var(--radius-md)] border border-[var(--color-border)] space-y-1">
+                <div className="flex items-center gap-2 font-heading font-extrabold text-xs text-[var(--color-teal-deep)]">
+                  <span>🩺</span> Verified RMP Network
+                </div>
+                <p className="text-[11px] text-[var(--color-ink-muted)] leading-normal">
+                  Strict TPG 2020 compliance & medical council registration check.
+                </p>
+              </div>
+
+              <div className="bg-[var(--color-cream)] p-3.5 rounded-[var(--radius-md)] border border-[var(--color-border)] space-y-1">
+                <div className="flex items-center gap-2 font-heading font-extrabold text-xs text-[var(--color-teal-deep)]">
+                  <span>🔐</span> VaidyaDrishti Health Record
+                </div>
+                <p className="text-[11px] text-[var(--color-ink-muted)] leading-normal">
+                  One-click history drawer for past prescriptions & lab reports.
+                </p>
+              </div>
+
+              <div className="bg-[var(--color-cream)] p-3.5 rounded-[var(--radius-md)] border border-[var(--color-border)] space-y-1">
+                <div className="flex items-center gap-2 font-heading font-extrabold text-xs text-[var(--color-teal-deep)]">
+                  <span>🛡️</span> DPDP Act 2023 Compliant
+                </div>
+                <p className="text-[11px] text-[var(--color-ink-muted)] leading-normal">
+                  Encrypted patient data privacy, role authorization & audit trails.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Hero Panel (Practice Location Search Controls) */}
+          <div className="md:col-span-5 bg-[var(--color-teal-deep)] text-white rounded-[var(--radius-lg)] p-6 sm:p-8 relative overflow-hidden flex flex-col justify-between shadow-xl">
+            <div className="absolute top-0 right-0 -mr-16 -mt-16 w-72 h-72 rounded-full bg-[var(--color-violet)]/20 blur-3xl pointer-events-none"></div>
+
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-bold text-[var(--color-teal-soft)] border border-white/10">
+                <span>📍 Nationwide Practice Location Search</span>
+              </div>
+
+              <h2 className="text-xl sm:text-2xl font-heading font-extrabold text-white leading-tight">
+                Find RMP Specialists Near You
               </h2>
+
+              <p className="text-xs text-[var(--color-teal-soft)]/90 leading-relaxed">
+                Search over 1,200 Indian cities or auto-detect your location to discover verified doctors and clinics.
+              </p>
+
+              {/* Autocomplete Search Controls */}
+              <div className="space-y-3 pt-2">
+                <label className="block text-[11px] font-bold text-white uppercase tracking-wider">
+                  Select Practice Location *
+                </label>
+
+                <CitySearchAutocomplete
+                  selectedCity={selectedCity}
+                  onSelectCity={(cityName) => {
+                    setSelectedCity(cityName);
+                    setCustomLocation('');
+                  }}
+                />
+
+                <input
+                  type="text"
+                  placeholder="Or type custom Pincode / Landmark..."
+                  value={customLocation}
+                  onChange={(e) => setCustomLocation(e.target.value)}
+                  className="w-full bg-white text-[var(--color-ink)] text-xs font-bold rounded-[var(--radius-md)] px-4 py-2.5 focus:outline-none focus:border-[var(--color-violet)] placeholder:text-[var(--color-ink-muted)]"
+                />
+              </div>
             </div>
 
-            {/* Stylized Location Map Pin Visual SVG */}
-            <div className="my-6 flex justify-center">
-              <svg className="w-full h-44 text-[var(--color-teal-soft)] opacity-95" viewBox="0 0 320 180" fill="none">
-                <rect x="10" y="10" width="300" height="160" rx="16" fill="white" fillOpacity="0.05" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 4" />
-                <path d="M40 140C90 110 120 150 170 120C220 90 260 130 290 100" stroke="white" strokeOpacity="0.2" strokeWidth="2" strokeDasharray="6 6" />
-                {/* Map Pins */}
-                <g transform="translate(160, 60)">
-                  <circle cx="0" cy="0" r="28" fill="#6C4CE0" fillOpacity="0.25" className="animate-ping" />
-                  <path d="M0 -18C-8.28 -18 -15 -11.28 -15 -3C-15 10 0 25 0 25C0 25 15 10 15 -3C15 -11.28 8.28 -18 0 -18Z" fill="#6C4CE0" stroke="white" strokeWidth="2" />
-                  <circle cx="0" cy="-3" r="5" fill="white" />
-                </g>
-                <g transform="translate(80, 110)">
-                  <path d="M0 -12C-5.5 -12 -10 -7.5 -10 -2C-10 7 0 16 0 16C0 16 10 7 10 -2C10 -7.5 5.5 -12 0 -12Z" fill="#FAF6EE" stroke="#0F3D3E" strokeWidth="1.5" />
-                  <circle cx="0" cy="-2" r="3" fill="#0F3D3E" />
-                </g>
-                <g transform="translate(240, 90)">
-                  <path d="M0 -12C-5.5 -12 -10 -7.5 -10 -2C-10 7 0 16 0 16C0 16 10 7 10 -2C10 -7.5 5.5 -12 0 -12Z" fill="#FAF6EE" stroke="#0F3D3E" strokeWidth="1.5" />
-                  <circle cx="0" cy="-2" r="3" fill="#0F3D3E" />
-                </g>
-              </svg>
-            </div>
-
-            {/* Floating Trust Cards */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Bottom Trust Cards */}
+            <div className="grid grid-cols-2 gap-3 pt-6 mt-4 border-t border-white/10">
               <div className="bg-white/95 text-[var(--color-ink)] p-3 rounded-[var(--radius-md)] shadow-md">
                 <div className="font-heading font-extrabold text-xs">Verified RMP</div>
                 <div className="text-[10px] text-[var(--color-ink-muted)]">TPG 2020 Guidelines</div>

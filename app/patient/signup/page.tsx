@@ -66,33 +66,33 @@ export default function PatientSignupPage() {
       errorMsg={errorMsg}
     >
       <form onSubmit={handleSignup} className="space-y-3.5">
-        <div>
-          <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1">
-            Full Name *
-          </label>
-          <input
-            type="text"
-            required
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            placeholder="e.g. Ayush Kumar"
-            className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-3 text-sm focus:outline-none focus:border-[var(--color-violet)] text-[var(--color-ink)]"
-          />
-        </div>
+          <div>
+            <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1">
+              Full Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Enter your full name"
+              className="w-full bg-[var(--color-white)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-3 text-xs focus:outline-none focus:border-[var(--color-violet)] text-[var(--color-ink)]"
+            />
+          </div>
 
-        <div>
-          <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1">
-            Email Address *
-          </label>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="patient@example.com"
-            className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-3 text-sm focus:outline-none focus:border-[var(--color-violet)] text-[var(--color-ink)]"
-          />
-        </div>
+          <div>
+            <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1">
+              Email Address *
+            </label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email address"
+              className="w-full bg-[var(--color-white)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-3 text-xs focus:outline-none focus:border-[var(--color-violet)] text-[var(--color-ink)] font-data"
+            />
+          </div>
 
         <div>
           <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider mb-1">
