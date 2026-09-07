@@ -43,16 +43,29 @@ export default function PatientIntakePage() {
   return (
     <main className="min-h-screen bg-[var(--color-cream)] text-[var(--color-ink)] py-8 px-4 sm:px-6 flex flex-col items-center justify-center">
       <div className="max-w-xl w-full space-y-6">
+        {/* Statutory TPG 2020 & DPDP Act Emergency Disclaimer */}
+        <div className="bg-[var(--color-violet-soft)] border border-[var(--color-violet)]/30 rounded-[var(--radius-md)] p-4 space-y-2 text-left shadow-xs">
+          <div className="flex items-center gap-2 text-[var(--color-violet)] font-heading font-extrabold text-xs tracking-wide">
+            <span>🚨 Statutory Clinical Triage Disclaimer (TPG 2020 Guidelines)</span>
+          </div>
+          <p className="text-xs text-[var(--color-ink)] leading-relaxed">
+            This pre-screening tool assists Registered Medical Practitioners (RMPs) during OPD triage and does <strong>not</strong> replace direct medical consultation or issue prescriptions autonomously.
+          </p>
+          <div className="bg-[var(--color-urgent-high-bg)] border border-[var(--color-urgent-high)]/30 p-2.5 rounded-lg text-[11px] font-bold text-[var(--color-urgent-high)] leading-relaxed">
+            ⚠️ <strong>Medical Emergency Warning:</strong> If you are experiencing severe chest pain, shortness of breath, heavy bleeding, or sudden paralysis, immediately call <strong>108</strong> or visit your nearest hospital emergency room.
+          </div>
+        </div>
+
         {/* Patient Form Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center gap-2 bg-[var(--color-blue-soft)] text-[var(--color-navy)] px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-            <span>🩺 Official OPD Patient Registration</span>
+          <div className="inline-flex items-center gap-2 bg-[var(--color-violet-soft)] text-[var(--color-violet)] px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider border border-[var(--color-violet)]/20">
+            <span>🩺 Official RMP OPD Patient Registration</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-[var(--color-navy)] tracking-tight">
+          <h1 className="text-3xl sm:text-4xl font-heading font-extrabold text-[var(--color-ink)] tracking-tight">
             VaidyaDrishti Tele-Triage Intake
           </h1>
           <p className="text-sm text-[var(--color-ink-muted)]">
-            Please fill in your details and describe your medical symptoms clearly for doctor consultation.
+            Please fill in your details and describe your medical symptoms clearly for RMP doctor consultation.
           </p>
         </div>
 

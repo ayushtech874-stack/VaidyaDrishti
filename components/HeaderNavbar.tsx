@@ -137,52 +137,54 @@ export default function HeaderNavbar() {
           </Link>
 
           {/* Right Controls Container */}
-          <div className="flex items-center gap-2 sm:gap-3 bg-[var(--color-white)] p-1.5 pl-3 rounded-full border border-[var(--color-border)] shadow-sm">
+          <div className="flex items-center gap-1.5 sm:gap-3 bg-[var(--color-white)] p-1 sm:p-1.5 pl-2 sm:pl-3 rounded-full border border-[var(--color-border)] shadow-sm shrink-0">
             <LanguageToggle />
 
-            {/* Quick Symptom Check CTA (ALWAYS VISIBLE & PROMINENT) */}
+            {/* Quick Symptom Check CTA (PROMINENT & RESPONSIVE) */}
             <Link
               href="/patient/intake"
-              className="bg-[var(--color-violet-soft)] text-[var(--color-violet)] hover:bg-[var(--color-violet)] hover:text-white px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all flex items-center gap-1.5 border border-[var(--color-violet)]/30"
-              title="Anonymous 100% Free Voice/Text OPD Symptom Intake"
+              className="bg-[var(--color-violet-soft)] text-[var(--color-violet)] hover:bg-[var(--color-violet)] hover:text-white px-2.5 sm:px-3.5 py-1.5 rounded-full text-[11px] sm:text-xs font-extrabold transition-all flex items-center gap-1 border border-[var(--color-violet)]/30 shrink-0"
+              title="Official RMP OPD Symptom Intake & Tele-Triage"
             >
-              <span>⚡ Quick Symptom Check</span>
+              <span>⚡</span>
+              <span className="hidden xs:inline sm:inline">Quick Symptom Check</span>
+              <span className="inline xs:hidden sm:hidden">Triage</span>
             </Link>
 
             {user ? (
               /* LOGGED IN NAV STATE */
-              <>
+              <div className="flex items-center gap-1.5">
                 <Link
                   href={dashboardHref}
-                  className="btn-primary py-1.5 px-3.5 text-xs font-bold shadow-sm"
+                  className="btn-primary py-1.5 px-3 sm:px-3.5 text-xs font-bold shadow-sm shrink-0"
                 >
                   <span>Dashboard</span>
                 </Link>
 
                 <Link
                   href={userRole === 'doctor' ? '/doctor/dashboard?tab=profile' : '/patient/dashboard'}
-                  className="btn-dark py-1.5 px-3.5 text-xs font-bold shadow-sm hidden sm:inline-flex"
+                  className="btn-dark py-1.5 px-3.5 text-xs font-bold shadow-sm hidden md:inline-flex shrink-0"
                 >
                   <span>Profile</span>
                 </Link>
 
                 <button
                   onClick={handleSignOut}
-                  className="btn-secondary py-1.5 px-3.5 text-xs font-bold"
+                  className="btn-secondary py-1.5 px-2.5 sm:px-3.5 text-xs font-bold shrink-0"
                 >
                   <span>Sign Out</span>
                 </button>
-              </>
+              </div>
             ) : (
               /* LOGGED OUT NAV STATE */
-              <>
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => {
                     setAuthRole('patient');
                     setAuthMode('login');
                     setIsAuthOpen(true);
                   }}
-                  className="btn-primary py-1.5 px-3.5 text-xs font-bold shadow-sm cursor-pointer"
+                  className="btn-primary py-1.5 px-3 sm:px-3.5 text-xs font-bold shadow-sm cursor-pointer shrink-0"
                 >
                   <span>Log In</span>
                 </button>
@@ -193,11 +195,11 @@ export default function HeaderNavbar() {
                     setAuthMode('signup');
                     setIsAuthOpen(true);
                   }}
-                  className="btn-secondary py-1.5 px-3.5 text-xs font-bold cursor-pointer hidden sm:inline-flex"
+                  className="btn-secondary py-1.5 px-3.5 text-xs font-bold cursor-pointer hidden md:inline-flex shrink-0"
                 >
                   <span>Sign Up</span>
                 </button>
-              </>
+              </div>
             )}
           </div>
         </div>

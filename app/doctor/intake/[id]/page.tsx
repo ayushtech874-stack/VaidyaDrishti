@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import DoctorCorrectionForm from './CorrectionForm';
 import IntakeStageActions from './IntakeStageActions';
+import PatientHistoryDrawerButton from './PatientHistoryDrawerButton';
 import ReassignDoctorModal from './ReassignDoctorModal';
 
 export const revalidate = 0;
@@ -152,21 +153,28 @@ export default async function DoctorIntakeDetailPage({
           </div>
         </div>
 
-        {/* Urgency Badge */}
-        <div>
+        {/* Urgency Badge & Patient Health Record Button */}
+        <div className="flex items-center gap-3">
+          {patient?.id && (
+            <PatientHistoryDrawerButton
+              patientId={patient.id}
+              patientName={patient.name || 'Patient'}
+            />
+          )}
+
           {urgency === 'high' && (
-            <span className="inline-flex items-center gap-2 bg-red-600 text-white font-extrabold text-sm px-4 py-2 rounded-xl shadow">
+            <span className="inline-flex items-center gap-2 bg-[var(--color-urgent-high)] text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow">
               🔴 HIGH URGENCY
             </span>
           )}
           {urgency === 'medium' && (
-            <span className="inline-flex items-center gap-2 bg-amber-500 text-white font-bold text-sm px-4 py-2 rounded-xl shadow">
+            <span className="inline-flex items-center gap-2 bg-amber-500 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow">
               🟡 MEDIUM URGENCY
             </span>
           )}
           {urgency === 'low' && (
-            <span className="inline-flex items-center gap-2 bg-emerald-600 text-white font-semibold text-sm px-4 py-2 rounded-xl shadow">
-              🟢 LOW URGENCY
+            <span className="inline-flex items-center gap-2 bg-[var(--color-teal-deep)] text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow">
+              🟢 ROUTINE OPD
             </span>
           )}
         </div>

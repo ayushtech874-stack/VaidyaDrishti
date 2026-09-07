@@ -5,59 +5,69 @@ import Link from 'next/link';
 import Image from 'next/image';
 import HeaderNavbar from '@/components/HeaderNavbar';
 
+import CitySearchAutocomplete from '@/components/CitySearchAutocomplete';
+
+const DEFAULT_CITIES = [
+  'Bhagalpur',
+  'Patna',
+  'Muzaffarpur',
+  'Gaya',
+  'Darbhanga',
+  'Purnia',
+  'Varanasi',
+  'Lucknow',
+  'Ranchi',
+  'Dhanbad',
+  'Jamshedpur',
+  'Gorakhpur',
+  'Agra',
+];
+
 export default function PublicDirectoryPage() {
-  const [selectedCity, setSelectedCity] = useState<string>('');
+  const [selectedCity, setSelectedCity] = useState<string>('Bhagalpur');
   const [customLocation, setCustomLocation] = useState<string>('');
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
-  const [cities, setCities] = useState<string[]>([]);
+  const [cities, setCities] = useState<string[]>(DEFAULT_CITIES);
   const [clinics, setClinics] = useState<any[]>([]);
   const [doctors, setDoctors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [locating, setLocating] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+    const timer = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 3000);
+
     async function fetchDirectory() {
       try {
         const res = await fetch('/api/directory/public');
         const data = await res.json();
-        if (data.cities) setCities(data.cities);
-        if (data.clinics) setClinics(data.clinics);
-        if (data.doctors) setDoctors(data.doctors);
+        if (isMounted) {
+          const fetchedCities = data.cities || [];
+          const mergedCities = Array.from(new Set([...DEFAULT_CITIES, ...fetchedCities]));
+          setCities(mergedCities);
+          if (data.clinics) setClinics(data.clinics);
+          if (data.doctors) setDoctors(data.doctors);
+        }
       } catch (err) {
         console.error('Failed to load directory:', err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     }
     fetchDirectory();
-  }, []);
 
-  const handleAutoDetectLocation = () => {
-    if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
-      return;
-    }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocating(false);
-        const detected = cities.length > 0 ? cities[0] : 'Bhagalpur';
-        setSelectedCity(detected);
-        setCustomLocation(`Lat: ${pos.coords.latitude.toFixed(2)}, Lon: ${pos.coords.longitude.toFixed(2)}`);
-      },
-      (err) => {
-        setLocating(false);
-        console.warn(err);
-        alert('Could not auto-detect location. Please select a city manually.');
-      }
-    );
-  };
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, []);
 
   const activeLocationName = customLocation || selectedCity;
 
   // Filter doctors by selected city & specialty
   const filteredDoctors = doctors.filter((doc) => {
-    if (!selectedCity) return false;
+    if (!selectedCity) return true;
     const docCity = doc.clinics?.city || doc.city || 'Bhagalpur';
     const matchesCity = docCity.toLowerCase() === selectedCity.toLowerCase();
     if (!matchesCity) return false;
@@ -113,42 +123,19 @@ export default function PublicDirectoryPage() {
               </p>
             </div>
 
-            {/* Location Selector Controls */}
+            {/* Nationwide City Search Autocomplete Controls */}
             <div className="mt-8 space-y-3 pt-6 border-t border-[var(--color-border)]">
               <label className="block text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider">
-                Select Practice Location *
+                Select Practice Location (Search 1,200+ Indian Cities) *
               </label>
               
-              <div className="flex flex-col sm:flex-row items-center gap-3">
-                <button
-                  onClick={handleAutoDetectLocation}
-                  disabled={locating}
-                  className="w-full sm:w-auto btn-primary py-3 px-5 text-xs font-bold shrink-0 disabled:opacity-50"
-                >
-                  <span>{locating ? '⌛ Locating...' : '📍 Auto-Detect Location'}</span>
-                </button>
-
-                <div className="relative w-full">
-                  <select
-                    value={selectedCity}
-                    onChange={(e) => {
-                      setSelectedCity(e.target.value);
-                      setCustomLocation('');
-                    }}
-                    className="w-full bg-[var(--color-cream)] border border-[var(--color-border)] text-[var(--color-ink)] text-xs font-bold rounded-[var(--radius-md)] px-4 py-3 appearance-none focus:outline-none focus:border-[var(--color-violet)] cursor-pointer"
-                  >
-                    <option value="">-- Choose City / District --</option>
-                    {cities.map((city) => (
-                      <option key={city} value={city}>
-                        📍 {city}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--color-ink-muted)] pointer-events-none text-xs">
-                    ▼
-                  </span>
-                </div>
-              </div>
+              <CitySearchAutocomplete
+                selectedCity={selectedCity}
+                onSelectCity={(cityName) => {
+                  setSelectedCity(cityName);
+                  setCustomLocation('');
+                }}
+              />
 
               <input
                 type="text"
@@ -160,24 +147,50 @@ export default function PublicDirectoryPage() {
             </div>
           </div>
 
-          {/* Right Hero Panel (Teal Deep Panel with Floating Trust Badges) */}
+          {/* Right Hero Panel (Consistent Branding + Location Map-Pin Visual) */}
           <div className="hidden md:flex md:col-span-5 bg-[var(--color-teal-deep)] text-white rounded-[var(--radius-lg)] p-8 sm:p-10 relative overflow-hidden flex-col justify-between shadow-xl">
             <div className="absolute top-0 right-0 -mr-16 -mt-16 w-72 h-72 rounded-full bg-[var(--color-violet)]/20 blur-3xl pointer-events-none"></div>
 
             <div>
-              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-3.5 py-1 rounded-full text-xs font-bold text-[var(--color-teal-soft)] border border-white/10">
-                <span>🛡️ DPDP Act 2023 Compliant</span>
+              {/* Brand Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center p-1 shadow-sm">
+                    <Image src="/icon.svg" alt="VaidyaDrishti" width={24} height={24} className="object-contain" />
+                  </div>
+                  <span className="text-lg font-heading font-extrabold text-white tracking-tight">
+                    VaidyaDrishti
+                  </span>
+                </div>
+                <div className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-bold text-[var(--color-teal-soft)] border border-white/10">
+                  <span>🛡️ DPDP Act 2023 Compliant</span>
+                </div>
               </div>
-              <h2 className="text-2xl lg:text-3xl font-heading font-extrabold text-white mt-4 leading-tight">
-                Verified RMP Doctors & Direct Tele-Consultation
+
+              <h2 className="text-2xl lg:text-3xl font-heading font-extrabold text-white mt-2 leading-tight">
+                Find Accredited RMP Healthcare Near You Across India
               </h2>
             </div>
 
-            {/* Illustration SVG */}
+            {/* Stylized Location Map Pin Visual SVG */}
             <div className="my-6 flex justify-center">
-              <svg className="w-full h-40 text-[var(--color-teal-soft)] opacity-90" viewBox="0 0 320 180" fill="none">
-                <rect x="10" y="20" width="300" height="140" rx="16" fill="white" fillOpacity="0.05" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M40 90H90L105 60L125 130L145 40L165 110L180 90H280" stroke="#6C4CE0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              <svg className="w-full h-44 text-[var(--color-teal-soft)] opacity-95" viewBox="0 0 320 180" fill="none">
+                <rect x="10" y="10" width="300" height="160" rx="16" fill="white" fillOpacity="0.05" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 4" />
+                <path d="M40 140C90 110 120 150 170 120C220 90 260 130 290 100" stroke="white" strokeOpacity="0.2" strokeWidth="2" strokeDasharray="6 6" />
+                {/* Map Pins */}
+                <g transform="translate(160, 60)">
+                  <circle cx="0" cy="0" r="28" fill="#6C4CE0" fillOpacity="0.25" className="animate-ping" />
+                  <path d="M0 -18C-8.28 -18 -15 -11.28 -15 -3C-15 10 0 25 0 25C0 25 15 10 15 -3C15 -11.28 8.28 -18 0 -18Z" fill="#6C4CE0" stroke="white" strokeWidth="2" />
+                  <circle cx="0" cy="-3" r="5" fill="white" />
+                </g>
+                <g transform="translate(80, 110)">
+                  <path d="M0 -12C-5.5 -12 -10 -7.5 -10 -2C-10 7 0 16 0 16C0 16 10 7 10 -2C10 -7.5 5.5 -12 0 -12Z" fill="#FAF6EE" stroke="#0F3D3E" strokeWidth="1.5" />
+                  <circle cx="0" cy="-2" r="3" fill="#0F3D3E" />
+                </g>
+                <g transform="translate(240, 90)">
+                  <path d="M0 -12C-5.5 -12 -10 -7.5 -10 -2C-10 7 0 16 0 16C0 16 10 7 10 -2C10 -7.5 5.5 -12 0 -12Z" fill="#FAF6EE" stroke="#0F3D3E" strokeWidth="1.5" />
+                  <circle cx="0" cy="-2" r="3" fill="#0F3D3E" />
+                </g>
               </svg>
             </div>
 
@@ -225,9 +238,27 @@ export default function PublicDirectoryPage() {
       {/* Directory Listings */}
       <main className="max-w-7xl mx-auto px-4 py-8 flex-1 w-full space-y-10">
         {loading ? (
-          <div className="py-20 text-center space-y-3">
-            <div className="w-8 h-8 border-2 border-[var(--color-violet)] border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-xs text-[var(--color-ink-muted)] font-medium">Loading verified medical directory...</p>
+          <div className="space-y-4 py-8">
+            <div className="flex items-center justify-between">
+              <div className="h-6 w-48 bg-[var(--color-border)]/50 animate-pulse rounded-md" />
+              <div className="h-6 w-24 bg-[var(--color-border)]/50 animate-pulse rounded-full" />
+            </div>
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="bg-[var(--color-white)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6 animate-pulse flex flex-col md:flex-row items-start md:items-center justify-between gap-6"
+              >
+                <div className="flex items-center gap-4 w-full">
+                  <div className="w-16 h-16 rounded-[var(--radius-md)] bg-[var(--color-border)]/60 shrink-0" />
+                  <div className="space-y-2.5 w-full max-w-md">
+                    <div className="h-5 w-44 bg-[var(--color-border)]/70 rounded-md" />
+                    <div className="h-3 w-60 bg-[var(--color-border)]/40 rounded-md" />
+                    <div className="h-3 w-36 bg-[var(--color-border)]/40 rounded-md" />
+                  </div>
+                </div>
+                <div className="w-32 h-9 bg-[var(--color-border)]/60 rounded-full shrink-0" />
+              </div>
+            ))}
           </div>
         ) : !selectedCity ? (
           <div className="py-16 px-6 rounded-[var(--radius-lg)] bg-[var(--color-white)] border border-[var(--color-border)] text-center space-y-4 max-w-xl mx-auto my-8 shadow-[var(--shadow-card)]">
@@ -258,14 +289,24 @@ export default function PublicDirectoryPage() {
               </div>
 
               {filteredDoctors.length === 0 ? (
-                <div className="py-12 px-6 rounded-[var(--radius-lg)] bg-[var(--color-white)] border border-[var(--color-border)] text-center space-y-3">
-                  <span className="text-3xl">🩺</span>
-                  <h3 className="text-base font-bold text-[var(--color-ink)]">
-                    No doctors available right now at this particular location.
-                  </h3>
-                  <p className="text-xs text-[var(--color-ink-muted)] max-w-md mx-auto">
-                    We could not find any active RMP doctors listed for <span className="font-semibold text-[var(--color-ink)]">"{activeLocationName || selectedCity}"</span>. Try selecting another nearby city.
-                  </p>
+                <div className="py-12 px-6 rounded-[var(--radius-lg)] bg-[var(--color-white)] border border-[var(--color-border)] text-center space-y-4 max-w-xl mx-auto my-4 shadow-xs">
+                  <div className="w-14 h-14 rounded-full bg-[var(--color-teal-soft)] text-[var(--color-teal-deep)] text-2xl mx-auto flex items-center justify-center font-bold">
+                    🏥
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-base font-heading font-extrabold text-[var(--color-ink)]">
+                      No Verified Doctors Listed in {activeLocationName || selectedCity} Yet
+                    </h3>
+                    <p className="text-xs text-[var(--color-ink-muted)] max-w-md mx-auto leading-relaxed">
+                      Are you an RMP practitioner or specialty clinic in <span className="font-bold text-[var(--color-ink)]">{activeLocationName || selectedCity}</span>? Register your practice to start accepting tele-triage consultations.
+                    </p>
+                  </div>
+                  <Link
+                    href="/doctor/register"
+                    className="btn-primary inline-flex py-2.5 px-5 text-xs font-bold shadow-sm"
+                  >
+                    <span>🩺 Register as RMP Doctor in {activeLocationName || selectedCity} →</span>
+                  </Link>
                 </div>
               ) : (
                 <div className="flex flex-col space-y-4">

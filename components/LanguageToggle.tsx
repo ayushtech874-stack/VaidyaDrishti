@@ -7,26 +7,26 @@ export default function LanguageToggle() {
   const { locale, setLocale, t } = useLanguage();
 
   return (
-    <div className="inline-flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold shadow-xs">
+    <div className="inline-flex items-center gap-0.5 bg-[var(--color-cream)] p-1 rounded-full border border-[var(--color-border)] text-xs font-bold shadow-xs">
       <button
         onClick={() => setLocale('en')}
-        className={`px-2.5 py-1 rounded-lg transition ${
+        className={`px-2.5 py-0.5 rounded-full transition-all text-xs font-extrabold cursor-pointer ${
           locale === 'en'
-            ? 'bg-[var(--color-navy)] text-white shadow-xs'
-            : 'text-slate-600 hover:text-slate-900'
+            ? 'bg-[var(--color-violet)] text-white shadow-xs'
+            : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
         }`}
       >
-        English
+        EN
       </button>
       <button
         onClick={() => setLocale('hi')}
-        className={`px-2.5 py-1 rounded-lg transition ${
+        className={`px-2.5 py-0.5 rounded-full transition-all text-xs font-extrabold cursor-pointer ${
           locale === 'hi'
-            ? 'bg-[var(--color-navy)] text-white shadow-xs'
-            : 'text-slate-600 hover:text-slate-900'
+            ? 'bg-[var(--color-violet)] text-white shadow-xs'
+            : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
         }`}
       >
-        हिंदी
+        HI
       </button>
     </div>
   );

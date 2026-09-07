@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     "Groq Whisper ASR",
     "Doctor Clinic Portal",
   ],
-  authors: [{ name: "Ayush Tech Team", url: "https://github.com/ayushtech874-stack/VaidyaDrishti" }],
+  authors: [{ name: "VaidyaDrishti Clinical Engineering", url: "https://vaidya-drishti.vercel.app" }],
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
     shortcut: "/icon.svg",

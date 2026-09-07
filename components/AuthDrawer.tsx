@@ -242,7 +242,7 @@ export default function AuthDrawer({
 
             <div className="relative flex items-center justify-center my-3">
               <div className="border-t border-[var(--color-border)] w-full"></div>
-              <span className="bg-[var(--color-cream)] px-2.5 text-[10px] font-semibold text-[var(--color-ink-muted)] uppercase tracking-wider absolute">
+              <span className="bg-[var(--color-cream)] px-2.5 text-[11px] font-extrabold text-[var(--color-ink)] uppercase tracking-wider absolute">
                 or email authentication
               </span>
             </div>
@@ -260,7 +260,7 @@ export default function AuthDrawer({
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Ayush Kumar"
+                  placeholder="Enter your full name"
                   className="w-full bg-[var(--color-white)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-2.5 text-xs focus:outline-none focus:border-[var(--color-violet)] text-[var(--color-ink)]"
                 />
               </div>
@@ -275,7 +275,7 @@ export default function AuthDrawer({
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder={role === 'doctor' ? 'doctor@clinic.com or admin@vaidyadrishti.com' : 'patient@example.com'}
+                placeholder={role === 'doctor' ? 'doctor@clinic.com' : 'you@example.com'}
                 className="w-full bg-[var(--color-white)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-2.5 text-xs focus:outline-none focus:border-[var(--color-violet)] text-[var(--color-ink)] font-data"
               />
             </div>
