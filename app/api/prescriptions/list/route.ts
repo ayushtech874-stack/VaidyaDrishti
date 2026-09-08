@@ -61,10 +61,45 @@ export async function GET(request: Request) {
       `)
       .order('issued_at', { ascending: false });
 
+    const { searchParams } = new URL(request.url);
+    const targetPatientId = searchParams.get('patient_id');
+
     if (doc) {
-      query = query.eq('doctor_id', doc.id);
+      if (targetPatientId) {
+        // Verify relationship
+        const { data: relationship } = await supabaseAdmin
+          .from('intakes')
+          .select('id')
+          .eq('doctor_id', doc.id)
+          .eq('patient_id', targetPatientId)
+          .limit(1);
+
+        if (!relationship || relationship.length === 0) {
+          return NextResponse.json(
+            { error: 'Access denied: No active doctor-patient relationship exists for this record.' },
+            { status: 403 }
+          );
+        }
+        query = query.eq('patient_id', targetPatientId);
+      } else {
+        query = query.eq('doctor_id', doc.id);
+      }
     } else if (pat) {
-      query = query.eq('patient_id', pat.id);
+      const { data: familyProfiles } = await supabaseAdmin
+        .from('patients')
+        .select('id')
+        .or(`auth_user_id.eq.${user.id},managed_by_auth_user_id.eq.${user.id}`);
+
+      const allowedIds = (familyProfiles || []).map(p => p.id);
+      const patientIdToFetch = targetPatientId || pat.id;
+
+      if (!allowedIds.includes(patientIdToFetch)) {
+        return NextResponse.json(
+          { error: 'Access denied: You do not have permission to view prescriptions for this patient.' },
+          { status: 403 }
+        );
+      }
+      query = query.eq('patient_id', patientIdToFetch);
     }
 
     const { data: prescriptions, error } = await query;
