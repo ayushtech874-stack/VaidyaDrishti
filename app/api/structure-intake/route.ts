@@ -36,21 +36,40 @@ Required Output Schema (JSON ONLY, no markdown, no explanatory text):
   "extraction_confidence": "high" | "medium" | "low"
 }`;
 
-async function callGroqLLM(rawText: string) {
-  const completion = await groq.chat.completions.create({
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      {
-        role: 'user',
-        content: `Extract and synthesize detailed clinical intake data from the following patient transcript:\n\n"${rawText}"`,
-      },
-    ],
-    model: 'llama-3.3-70b-versatile',
-    temperature: 0.1,
-    response_format: { type: 'json_object' },
-  });
+const CANDIDATE_MODELS = [
+  'llama-3.3-70b-versatile',
+  'llama-3.1-70b-versatile',
+  'llama3-70b-8192',
+  'llama-3.1-8b-instant',
+  'llama3-8b-8192',
+  'mixtral-8x7b-32768',
+];
 
-  return completion.choices[0]?.message?.content || '';
+async function callGroqLLM(rawText: string): Promise<{ content: string; modelUsed: string }> {
+  for (const modelCandidate of CANDIDATE_MODELS) {
+    try {
+      const completion = await groq.chat.completions.create({
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          {
+            role: 'user',
+            content: `Extract and synthesize detailed clinical intake data from the following patient transcript:\n\n"${rawText}"`,
+          },
+        ],
+        model: modelCandidate,
+        temperature: 0.1,
+        response_format: { type: 'json_object' },
+      });
+
+      const content = completion.choices[0]?.message?.content || '';
+      if (content) {
+        return { content, modelUsed: modelCandidate };
+      }
+    } catch (err: any) {
+      console.warn(`Groq model ${modelCandidate} failed:`, err?.message || err);
+    }
+  }
+  return { content: '', modelUsed: 'heuristic_fallback' };
 }
 
 function parseJSONSafely(content: string): StructuredIntakeData | null {
@@ -174,12 +193,16 @@ export async function POST(request: Request) {
     }
 
     let structuredData = null;
+    let modelUsed = 'none';
     let attempts = 0;
 
     while (attempts < 2 && !structuredData) {
       attempts++;
-      const llmOutput = await callGroqLLM(rawTextToStructure);
-      structuredData = parseJSONSafely(llmOutput);
+      const llmResult = await callGroqLLM(rawTextToStructure);
+      modelUsed = llmResult.modelUsed;
+      if (llmResult.content) {
+        structuredData = parseJSONSafely(llmResult.content);
+      }
     }
 
     if (!structuredData) {
@@ -225,7 +248,7 @@ export async function POST(request: Request) {
         event_type: 'LLM_EXTRACTION',
         actor: 'SYSTEM_AI',
         details: {
-          model: 'llama-3.3-70b-versatile',
+          model: modelUsed,
           raw_text: rawTextToStructure,
           structured_output: structuredData,
           confidence: structuredData.extraction_confidence,
