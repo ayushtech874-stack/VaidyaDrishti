@@ -38,6 +38,14 @@ export default function PublicDirectoryPage() {
       if (isMounted) setLoading(false);
     }, 3000);
 
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const spec = params.get('specialty');
+      if (spec && isMounted) {
+        setSelectedSpecialty(spec);
+      }
+    }
+
     async function fetchDirectory() {
       try {
         const res = await fetch('/api/directory/public');

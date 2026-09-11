@@ -43,7 +43,7 @@ export default function DoctorRegisterPage() {
       }
     });
 
-    fetch('/api/directory/clinics')
+    fetch('/api/directory/public')
       .then((res) => res.json())
       .then((data) => {
         if (data.clinics && data.clinics.length > 0) {

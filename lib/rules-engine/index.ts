@@ -24,6 +24,9 @@ export interface StructuredIntakeData {
   associated_symptoms?: string[];
   relevant_history?: string;
   extraction_confidence?: 'high' | 'medium' | 'low';
+  clinical_synthesis?: string;
+  clinical_reasoning?: string;
+  recommended_specialty?: string;
 }
 
 export interface TriageResult {
