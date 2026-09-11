@@ -56,13 +56,11 @@ FOR SELECT USING (
   EXISTS (
     SELECT 1 FROM public.intakes i
     WHERE i.patient_id = patient_medical_history.patient_id
-      AND (i.doctor_id = auth.uid() OR EXISTS (
-        SELECT 1 FROM public.doctors d WHERE d.id = i.doctor_id AND d.email = (auth.jwt() ->> 'email')
-      ))
+      AND i.doctor_id = auth.uid()
   )
 );
 
--- 5. Prescriptions Table: RLS Defense-in-Depth
+-- 5. Prescriptions Table: Database-Level RLS Defense-in-Depth
 ALTER TABLE public.prescriptions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Patients select own prescriptions" ON public.prescriptions;
 DROP POLICY IF EXISTS "Doctors select prescriptions on relationship" ON public.prescriptions;
@@ -83,8 +81,6 @@ FOR SELECT USING (
   OR EXISTS (
     SELECT 1 FROM public.intakes i
     WHERE i.patient_id = prescriptions.patient_id
-      AND (i.doctor_id = auth.uid() OR EXISTS (
-        SELECT 1 FROM public.doctors d WHERE d.id = i.doctor_id AND d.email = (auth.jwt() ->> 'email')
-      ))
+      AND i.doctor_id = auth.uid()
   )
 );
