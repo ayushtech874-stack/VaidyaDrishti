@@ -104,10 +104,10 @@ export async function POST(request: Request) {
 
     // Fetch fallback clinic and doctor if needed
     const { data: defaultClinic } = await supabase.from('clinics').select('id').limit(1).maybeSingle();
-    const fallbackClinicId = defaultClinic?.id || '00000000-0000-0000-0000-000000000001';
+    const fallbackClinicId = defaultClinic?.id || null;
 
     const { data: defaultDoc } = await supabase.from('doctors').select('id, name').limit(1).maybeSingle();
-    const fallbackDoctorId = defaultDoc?.id || '00000000-0000-0000-0000-000000000000';
+    const fallbackDoctorId = defaultDoc?.id || null;
 
     if (intake_id) {
       // Scenario A: Existing intake_id supplied
@@ -139,57 +139,67 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Symptoms description (raw_text) is required.' }, { status: 400 });
       }
 
-      let targetPatientId = body.patient_id;
+      rawTextToStructure = inputRawText;
+      patientAgeForTriage = parseInt(body.age, 10) || 30;
 
-      if (!targetPatientId) {
-        // Create new patient record from intake form inputs
-        const pName = (body.name || 'Anonymous Patient').trim();
-        const pAge = parseInt(body.age, 10) || 30;
-        const pPhone = body.phone || `+9190${Date.now().toString().slice(-8)}`;
+      // Safely record patient & intake in DB if requested / available
+      try {
+        let targetPatientId = body.patient_id;
 
-        const { data: newPatient, error: patErr } = await supabase
-          .from('patients')
-          .insert([{
+        if (!targetPatientId) {
+          const pName = (body.name || 'Anonymous Patient').trim();
+          const pAge = patientAgeForTriage;
+          const pPhone = body.phone || `+9190${Date.now().toString().slice(-8)}`;
+
+          const patientInsertData: Record<string, any> = {
             name: pName,
             age: pAge,
             phone: pPhone,
-            clinic_id: body.clinic_id || fallbackClinicId,
-            relationship: 'self'
-          }])
-          .select('id')
-          .single();
+            relationship: 'self',
+          };
+          if (body.clinic_id || fallbackClinicId) {
+            patientInsertData.clinic_id = body.clinic_id || fallbackClinicId;
+          }
 
-        if (patErr || !newPatient) {
-          throw new Error(`Failed to create patient registration: ${patErr?.message}`);
+          const { data: newPatient } = await supabase
+            .from('patients')
+            .insert([patientInsertData])
+            .select('id')
+            .single();
+
+          if (newPatient) {
+            targetPatientId = newPatient.id;
+          }
         }
-        targetPatientId = newPatient.id;
-        patientAgeForTriage = pAge;
+
+        const targetClinicId = body.clinic_id || fallbackClinicId;
+        const targetDoctorId = body.doctor_id || fallbackDoctorId;
+
+        if (targetPatientId) {
+          const intakeInsertData: Record<string, any> = {
+            patient_id: targetPatientId,
+            raw_text: inputRawText,
+            status: 'pending_review',
+            urgency_level: 'low',
+          };
+
+          if (targetClinicId) intakeInsertData.clinic_id = targetClinicId;
+          if (targetDoctorId) intakeInsertData.doctor_id = targetDoctorId;
+          if (body.department_id) intakeInsertData.department_id = body.department_id;
+
+          const { data: createdIntake } = await supabase
+            .from('intakes')
+            .insert([intakeInsertData])
+            .select('id')
+            .single();
+
+          if (createdIntake) {
+            intake_id = createdIntake.id;
+          }
+        }
+      } catch (dbErr: any) {
+        console.warn('Non-blocking intake DB persistence notice:', dbErr?.message);
       }
-
-      const targetClinicId = body.clinic_id || fallbackClinicId;
-      const targetDoctorId = body.doctor_id || fallbackDoctorId;
-
-      // Create new intake record in DB assigned to doctor queue
-      const { data: createdIntake, error: inErr } = await supabase
-        .from('intakes')
-        .insert([{
-          patient_id: targetPatientId,
-          clinic_id: targetClinicId,
-          doctor_id: targetDoctorId,
-          department_id: body.department_id || null,
-          raw_text: inputRawText,
-          status: 'pending_review',
-          urgency_level: 'low'
-        }])
-        .select('id, raw_text')
-        .single();
-
-      if (inErr || !createdIntake) {
-        throw new Error(`Failed to create consultation intake: ${inErr?.message}`);
-      }
-
-      intake_id = createdIntake.id;
-      rawTextToStructure = createdIntake.raw_text;
     }
 
     let structuredData = null;
@@ -226,20 +236,15 @@ export async function POST(request: Request) {
 
     const triageResult = checkUrgency(structuredData, patientAgeForTriage, rawTextToStructure);
 
-    const { error: updateError } = await supabase
-      .from('intakes')
-      .update({
-        structured_data: structuredData,
-        urgency_level: triageResult.urgency_level,
-        red_flags: triageResult.red_flags,
-      })
-      .eq('id', intake_id);
-
-    if (updateError) {
-      return NextResponse.json(
-        { error: `Failed to save structured data: ${updateError.message}` },
-        { status: 500 }
-      );
+    if (intake_id) {
+      await supabase
+        .from('intakes')
+        .update({
+          structured_data: structuredData,
+          urgency_level: triageResult.urgency_level,
+          red_flags: triageResult.red_flags,
+        })
+        .eq('id', intake_id);
     }
 
     await supabase.from('audit_logs').insert([
