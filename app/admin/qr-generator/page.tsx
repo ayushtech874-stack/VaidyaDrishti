@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
+import { features } from '@/lib/config/features';
+
 export default function AdminQRGeneratorPage() {
   const [clinicsList, setClinicsList] = useState<any[]>([]);
   const [doctorsList, setDoctorsList] = useState<any[]>([]);
@@ -74,6 +76,13 @@ export default function AdminQRGeneratorPage() {
           </Link>
         </div>
       </div>
+
+      {!features.isWhatsAppEnabled && (
+        <div className="bg-amber-50 border border-amber-300 text-amber-900 p-3.5 rounded-xl text-xs font-bold print:hidden flex items-center gap-2">
+          <span>⚠️</span>
+          <span>WhatsApp integration is currently <strong>disabled via feature flag</strong> (<code>NEXT_PUBLIC_ENABLE_WHATSAPP=false</code>). Direct patients to Web Intake (<code>/patient/intake</code>) until Meta Business API approval completes.</span>
+        </div>
+      )}
 
       {/* Selector Controls */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3 print:hidden">

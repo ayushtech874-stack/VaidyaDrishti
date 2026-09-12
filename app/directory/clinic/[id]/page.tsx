@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import HeaderNavbar from '@/components/HeaderNavbar';
+import { features } from '@/lib/config/features';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -83,17 +84,17 @@ export default async function ClinicProfilePage({ params }: PageProps) {
             )}
 
             {/* SIDE-BY-SIDE CONTACT OPTIONS */}
-            <div className="pt-4 space-y-4">
+            <div className="pt-6 border-t border-[var(--color-border)] space-y-4">
               <h3 className="text-xs font-heading font-extrabold text-[var(--color-ink)] uppercase tracking-wider text-center">
-                Facility Patient Intake Options (Both 100% Free)
+                Consultation & Intake Options (100% Free)
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className={`grid grid-cols-1 ${features.isWhatsAppEnabled ? 'md:grid-cols-2' : 'max-w-xl mx-auto'} gap-4`}>
                 {/* Option 1: Web Intake */}
                 <div className="p-5 border-2 border-[var(--color-violet)]/30 bg-[var(--color-violet-soft)]/30 rounded-[var(--radius-md)] space-y-3 flex flex-col justify-between">
                   <div>
                     <span className="text-[10px] font-bold uppercase bg-[var(--color-violet)] text-white px-2.5 py-0.5 rounded-full">
-                      OPTION 1: WEBSITE FORM
+                      RECOMMENDED: WEBSITE FORM
                     </span>
                     <h4 className="text-sm font-heading font-extrabold text-[var(--color-ink)] mt-2">Send Grievance via Website</h4>
                     <p className="text-[11px] text-[var(--color-ink-muted)] mt-1">
@@ -108,38 +109,41 @@ export default async function ClinicProfilePage({ params }: PageProps) {
                   </Link>
                 </div>
 
-                {/* Option 2: WhatsApp Deep Link + QR Code */}
-                <div className="p-5 border-2 border-emerald-500 bg-emerald-50/40 rounded-[var(--radius-md)] space-y-3 flex flex-col justify-between">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase bg-emerald-600 text-white px-2.5 py-0.5 rounded-full">
-                      OPTION 2: WHATSAPP (RECOMMENDED)
-                    </span>
-                    <h4 className="text-sm font-heading font-extrabold text-[var(--color-ink)] mt-2">Message on WhatsApp</h4>
-                    <p className="text-[11px] text-[var(--color-ink-muted)] mt-1">
-                      Send symptoms directly on WhatsApp to receive triage receipt & account claim link.
-                    </p>
-                  </div>
+                {/* Option 2: WhatsApp Deep Link + QR Code (Gated behind feature flag) */}
+                {features.isWhatsAppEnabled && (
+                  <div className="p-5 border-2 border-emerald-500 bg-emerald-50/40 rounded-[var(--radius-md)] space-y-3 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase bg-emerald-600 text-white px-2.5 py-0.5 rounded-full">
+                        OPTION 2: WHATSAPP
+                      </span>
+                      <h4 className="text-sm font-heading font-extrabold text-[var(--color-ink)] mt-2">Message on WhatsApp</h4>
+                      <p className="text-[11px] text-[var(--color-ink-muted)] mt-1">
+                        Send symptoms directly on WhatsApp to receive triage receipt & account claim link.
+                      </p>
+                    </div>
 
-                  <div className="space-y-2 text-center">
-                    <a
-                      href={waDeepLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-full inline-block shadow transition"
-                    >
-                      💬 Message on WhatsApp →
-                    </a>
+                    <div className="space-y-2 text-center">
+                      <a
+                        href={waDeepLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-full inline-block shadow transition"
+                      >
+                        💬 Message on WhatsApp →
+                      </a>
 
-                    {qrCodeDataUrl && (
-                      <div className="pt-2 hidden md:block">
-                        <p className="text-[10px] font-bold text-[var(--color-ink-muted)] mb-1">Desktop visitor? Scan with phone camera:</p>
-                        <img src={qrCodeDataUrl} alt="Facility WhatsApp QR Code" className="w-24 h-24 mx-auto border p-1 rounded bg-white shadow-sm" />
-                      </div>
-                    )}
+                      {qrCodeDataUrl && (
+                        <div className="pt-2 hidden md:block">
+                          <p className="text-[10px] font-bold text-[var(--color-ink-muted)] mb-1">Desktop visitor? Scan with phone camera:</p>
+                          <img src={qrCodeDataUrl} alt="Facility WhatsApp QR Code" className="w-24 h-24 mx-auto border p-1 rounded bg-white shadow-sm" />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
+          </div>
 
             {/* Affiliated Doctors Section */}
             <div className="pt-6 border-t border-[var(--color-border)] space-y-3">

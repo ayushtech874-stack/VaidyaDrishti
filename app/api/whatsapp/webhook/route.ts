@@ -23,8 +23,16 @@ export function parseGenderInput(text: string): string {
   return 'Male';
 }
 
+import { features } from '@/lib/config/features';
+
 export async function POST(request: Request) {
   try {
+    if (!features.isWhatsAppEnabled) {
+      return new Response(
+        createTwiMLResponse('WhatsApp automated triage is currently paused. Please submit your symptoms using our online form: /patient/intake'),
+        { headers: { 'Content-Type': 'text/xml' } }
+      );
+    }
     const supabase = getSupabase();
     const formData = await request.formData();
     const params: Record<string, string> = {};
