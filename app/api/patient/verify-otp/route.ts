@@ -126,11 +126,16 @@ export async function POST(request: Request) {
     }
 
     if (intake_id) {
-      await supabaseAdmin
+      // Guard: Only link if intake is currently unlinked (patient_id is null) or already belongs to this patient
+      const { error: linkErr } = await supabaseAdmin
         .from('intakes')
         .update({ patient_id: linkedPatient.id })
-        .eq('id', intake_id);
-      console.log(`[INTAKE LINKING SUCCESS] Linked Intake ${intake_id} to Patient ID: ${linkedPatient.id}`);
+        .eq('id', intake_id)
+        .or(`patient_id.is.null,patient_id.eq.${linkedPatient.id}`);
+        
+      if (!linkErr) {
+        console.log(`[INTAKE LINKING SUCCESS] Linked Intake ${intake_id} to Patient ID: ${linkedPatient.id}`);
+      }
     }
 
     // 4. Update Supabase Auth User Metadata

@@ -25,6 +25,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'doctor_id is required' }, { status: 400 });
     }
 
+    // Fetch existing intake to enforce unattached single-use guard
+    const { data: existingIntake, error: intakeErr } = await supabase
+      .from('intakes')
+      .select('id, doctor_id, patient_id')
+      .eq('id', intake_id)
+      .maybeSingle();
+
+    if (intakeErr || !existingIntake) {
+      return NextResponse.json({ error: 'Specified intake record not found.' }, { status: 404 });
+    }
+
+    if (existingIntake.doctor_id) {
+      return NextResponse.json({
+        error: 'This intake has already been attached to a doctor queue and cannot be re-attached.',
+        already_attached: true,
+      }, { status: 409 });
+    }
+
     // Verify doctor exists
     const { data: doc, error: docErr } = await supabase
       .from('doctors')
@@ -38,7 +56,7 @@ export async function POST(request: Request) {
 
     const targetClinicId = clinic_id || doc.clinic_id || '00000000-0000-0000-0000-000000000001';
 
-    // Single SQL UPDATE on original intake row
+    // Single SQL UPDATE on original intake row (only if doctor_id is currently null)
     const { error: updateError } = await supabase
       .from('intakes')
       .update({
@@ -46,7 +64,8 @@ export async function POST(request: Request) {
         clinic_id: targetClinicId,
         status: 'pending_review',
       })
-      .eq('id', intake_id);
+      .eq('id', intake_id)
+      .is('doctor_id', null);
 
     if (updateError) {
       return NextResponse.json({ error: `Failed to attach doctor: ${updateError.message}` }, { status: 500 });
