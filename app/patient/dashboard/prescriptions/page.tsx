@@ -99,32 +99,50 @@ export default function PatientPrescriptionsPage() {
                         <th className="p-2.5 rounded-l-lg">Medication & Strength</th>
                         <th className="p-2.5">Dosage / Frequency</th>
                         <th className="p-2.5">Duration</th>
-                        <th className="p-2.5">Food Timing</th>
+                        <th className="p-2.5">Medication Depletion Status</th>
                         <th className="p-2.5 rounded-r-lg">Instructions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--color-border)]">
-                      {(rx.prescription_items || []).map((item: any) => (
-                        <tr key={item.id} className="hover:bg-[var(--color-blue-soft)]/30">
-                          <td className="p-3 font-extrabold text-[var(--color-navy)]">
-                            💊 {item.drug_name} ({item.dosage})
-                          </td>
-                          <td className="p-3 font-semibold text-[var(--color-ink)]">
-                            {item.frequency}
-                          </td>
-                          <td className="p-3 font-data text-[var(--color-ink)]">
-                            {item.duration_days} Days
-                          </td>
-                          <td className="p-3">
-                            <span className="bg-[var(--color-blue-soft)] text-[var(--color-navy)] px-2 py-0.5 rounded font-bold uppercase text-[10px]">
-                              {item.timing?.replace('_', ' ')}
-                            </span>
-                          </td>
-                          <td className="p-3 text-[var(--color-ink-muted)] italic">
-                            {item.instructions || 'Take as directed'}
-                          </td>
-                        </tr>
-                      ))}
+                      {(rx.prescription_items || []).map((item: any) => {
+                        const issueTime = new Date(rx.issued_at).getTime();
+                        const nowTime = Date.now();
+                        const elapsedDays = Math.floor((nowTime - issueTime) / (1000 * 60 * 60 * 24));
+                        const durationDays = parseInt(item.duration_days, 10) || 7;
+                        const daysLeft = Math.max(0, durationDays - elapsedDays);
+
+                        return (
+                          <tr key={item.id} className="hover:bg-[var(--color-blue-soft)]/30">
+                            <td className="p-3 font-extrabold text-[var(--color-navy)]">
+                              💊 {item.drug_name} ({item.dosage})
+                            </td>
+                            <td className="p-3 font-semibold text-[var(--color-ink)]">
+                              {item.frequency}
+                            </td>
+                            <td className="p-3 font-data text-[var(--color-ink)]">
+                              {durationDays} Days
+                            </td>
+                            <td className="p-3">
+                              {daysLeft > 3 ? (
+                                <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 px-2.5 py-1 rounded-full font-bold text-[11px] inline-flex items-center gap-1">
+                                  🟢 {daysLeft} Days Remaining
+                                </span>
+                              ) : daysLeft > 0 ? (
+                                <span className="bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-1 rounded-full font-bold text-[11px] inline-flex items-center gap-1">
+                                  🟡 Refill Needed ({daysLeft} Day{daysLeft === 1 ? '' : 's'} Left)
+                                </span>
+                              ) : (
+                                <span className="bg-slate-100 text-slate-700 border border-slate-300 px-2.5 py-1 rounded-full font-bold text-[11px] inline-flex items-center gap-1">
+                                  🔴 Course Completed
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3 text-[var(--color-ink-muted)] italic">
+                              {item.instructions || 'Take as directed'}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
