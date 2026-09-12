@@ -47,6 +47,12 @@ export default function PatientVerifyPhonePage() {
     setIsLoading(true);
 
     try {
+      let pendingIntakeId: string | null = null;
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        pendingIntakeId = params.get('intake_id') || sessionStorage.getItem('pending_intake_id');
+      }
+
       const res = await fetch('/api/patient/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -55,6 +61,7 @@ export default function PatientVerifyPhonePage() {
           code: otpCode,
           name: fullName,
           age,
+          intake_id: pendingIntakeId,
         }),
       });
 

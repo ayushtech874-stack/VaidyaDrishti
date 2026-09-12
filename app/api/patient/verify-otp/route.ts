@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized. Please log in first.' }, { status: 401 });
     }
 
-    const { phone, code, name, age, gender } = await request.json();
+    const { phone, code, name, age, gender, intake_id } = await request.json();
     if (!phone || !code) {
       return NextResponse.json({ error: 'Phone number and verification code are required.' }, { status: 400 });
     }
@@ -123,6 +123,14 @@ export async function POST(request: Request) {
       if (cErr) throw cErr;
       linkedPatient = created;
       console.log(`[RECORD LINKING SUCCESS] Created new patient record (ID: ${created.id}) with Auth User ID: ${user.id}`);
+    }
+
+    if (intake_id) {
+      await supabaseAdmin
+        .from('intakes')
+        .update({ patient_id: linkedPatient.id })
+        .eq('id', intake_id);
+      console.log(`[INTAKE LINKING SUCCESS] Linked Intake ${intake_id} to Patient ID: ${linkedPatient.id}`);
     }
 
     // 4. Update Supabase Auth User Metadata
