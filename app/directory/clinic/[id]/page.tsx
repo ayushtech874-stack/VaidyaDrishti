@@ -143,7 +143,6 @@ export default async function ClinicProfilePage({ params }: PageProps) {
                 )}
               </div>
             </div>
-          </div>
 
             {/* Affiliated Doctors Section */}
             <div className="pt-6 border-t border-[var(--color-border)] space-y-3">
