@@ -25,8 +25,14 @@ export default function PatientIntakePage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [copiedSuccess, setCopiedSuccess] = useState(false);
 
+  const [dpdpConsent, setDpdpConsent] = useState(false);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!dpdpConsent) {
+      setErrorMsg('Please accept the DPDP Act 2023 privacy & data processing consent to proceed.');
+      return;
+    }
     setIsSubmitting(true);
     setErrorMsg('');
     setTriageResult(null);
@@ -208,7 +214,7 @@ Red Flags: ${triageResult.red_flags.length > 0 ? triageResult.red_flags.join(', 
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <Link
-                    href={`/directory?specialty=${encodeURIComponent(triageResult.recommended_specialty)}`}
+                    href={`/directory?specialty=${encodeURIComponent(triageResult.recommended_specialty)}${triageResult.intake_id ? `&intake_id=${triageResult.intake_id}` : ''}`}
                     className="btn-primary flex items-center justify-center gap-2 py-3.5 text-sm shadow-md"
                   >
                     <span>🩺 Choose Doctor in {triageResult.recommended_specialty}</span>
@@ -321,12 +327,26 @@ Red Flags: ${triageResult.red_flags.length > 0 ? triageResult.red_flags.join(', 
                   💡 Supports free-text in English, Hindi, Bhojpuri, Angika, and regional dialects.
                 </span>
               </div>
+
+              <div className="pt-2">
+                <label className="flex items-start gap-2.5 cursor-pointer text-xs text-[var(--color-ink)] font-medium leading-relaxed bg-[var(--color-cream)] p-3.5 rounded-xl border border-[var(--color-border)]">
+                  <input
+                    type="checkbox"
+                    checked={dpdpConsent}
+                    onChange={(e) => setDpdpConsent(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-violet)] focus:ring-[var(--color-violet)]"
+                  />
+                  <span>
+                    <strong>DPDP Act 2023 Consent:</strong> I explicitly consent to VaidyaDrishti processing my entered symptoms for instant clinical tele-triage pre-screening and specialty doctor recommendations.
+                  </span>
+                </label>
+              </div>
             </div>
 
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="btn-primary w-full text-base py-4 shadow-md"
+              disabled={isSubmitting || !dpdpConsent}
+              className="btn-primary w-full text-base py-4 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Analyzing Symptoms & Running AI Triage...' : 'Check Symptoms & Get AI Triage Report →'}
             </button>

@@ -203,3 +203,39 @@ export function checkUrgency(
     red_flags: [],
   };
 }
+
+/**
+ * Deterministic Hardcoded Patient-Facing Severity & Rationale
+ * (Compliant with Phase 9d guardrail: No free-form AI-authored clinical text shown directly to patients)
+ */
+export function getDeterministicClinicalRationale(urgency_level: 'high' | 'medium' | 'low', red_flags: string[]): string {
+  if (urgency_level === 'high') {
+    const flagLabels = red_flags.map(f => f.replace(/^HIGH:\s*/, '')).join('; ');
+    return `Emergency Alert: Symptoms contain critical red-flag indicators (${flagLabels || 'acute medical symptoms'}) requiring immediate emergency evaluation. Please call 108 or proceed to the nearest hospital casualty ward immediately.`;
+  }
+  if (urgency_level === 'medium') {
+    const flagLabels = red_flags.map(f => f.replace(/^MEDIUM:\s*/, '')).join('; ');
+    return `Urgent Care Notice: Reported symptoms include indicators (${flagLabels || 'moderate systemic symptoms'}) that warrant clinical evaluation within 24 hours to prevent complications.`;
+  }
+  return `Routine Consultation: Reported symptoms suggest a stable, non-emergency condition suitable for standard outpatient doctor evaluation.`;
+}
+
+/**
+ * Deterministic Specialty Mapping Function
+ * Maps symptom text & red flags to accredited medical specialties using rule-based keywords.
+ */
+export function getRecommendedSpecialty(symptomsText: string, red_flags: string[]): string {
+  const text = (symptomsText + ' ' + red_flags.join(' ')).toLowerCase();
+
+  if (/chest|cardiac|heart|breathlessness|palpitation|high bp|angina|hypertension/.test(text)) return 'Cardiology';
+  if (/skin|rash|itching|eczema|allergy|acne|lesion|derma/.test(text)) return 'Dermatology';
+  if (/fracture|bone|joint|sprain|back pain|knee|dislocation|ortho/.test(text)) return 'Orthopedics';
+  if (/child|infant|pediatric|baby|toddler|growth/.test(text)) return 'Pediatrics';
+  if (/headache|seizure|paralysis|stroke|numbness|dizziness|faint|neuro/.test(text)) return 'Neurology';
+  if (/ear|nose|throat|sinus|hearing|tonsil|tinnitus|ent/.test(text)) return 'ENT';
+  if (/pregnancy|period|cramp|gynec|vaginal|ovary|uterus/.test(text)) return 'Gynecology';
+  if (/tooth|dental|gum|molar|cavity|jaw/.test(text)) return 'Dental';
+
+  return 'General Medicine';
+}
+

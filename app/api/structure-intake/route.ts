@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import Groq from 'groq-sdk';
-import { checkUrgency, StructuredIntakeData } from '@/lib/rules-engine';
+import {
+  checkUrgency,
+  getDeterministicClinicalRationale,
+  getRecommendedSpecialty,
+  StructuredIntakeData,
+} from '@/lib/rules-engine';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,21 +18,17 @@ const groq = new Groq({
 });
 
 const SYSTEM_PROMPT = `You are an expert clinical data extraction and intake synthesis assistant in a medical tele-triage system.
-Your task is to analyze the patient's transcript and produce a highly descriptive, professional clinical breakdown in English for doctor decision-support and patient self-triage guidance.
+Your task is to analyze the patient's transcript and produce a highly descriptive, professional clinical breakdown in English for doctor decision-support.
 
 CRITICAL MANDATES & COMPLIANCE GUARDRAILS:
 1. You are a DATA EXTRACTION & SYNTHESIS tool, NOT a diagnostic tool.
 2. NEVER output a definitive disease diagnosis or prescribe prescription drugs.
 3. TRANSLATION MANDATE: Translate all regional languages/dialects (Hindi, Angika, Bhojpuri, Tamil, Kannada, Hinglish) into clear, professional Medical English.
 4. Provide a rich, comprehensive "clinical_synthesis" field capturing primary complaints, symptom progression, and patient state.
-5. Provide a "clinical_reasoning" field (2-3 sentences) explaining to the patient WHY their symptoms received their triage priority and what clinical risk factors were evaluated (e.g. "Your reported chest tightness with breathlessness requires urgent evaluation to rule out acute cardiac or respiratory compromise.").
-6. Provide a "recommended_specialty" field specifying the doctor specialty most relevant for consultation (e.g. 'General Physician', 'Cardiology', 'Neurology', 'Dermatology', 'Orthopedics', 'Psychiatry', 'ENT', 'Pediatrics', 'Gastroenterology').
 
 Required Output Schema (JSON ONLY, no markdown, no explanatory text):
 {
   "clinical_synthesis": "Comprehensive narrative synthesis of the patient's condition, emotional state, symptom progression, and specific guidance requested.",
-  "clinical_reasoning": "Clear 2-3 sentence clinical explanation for the patient justifying why their symptoms warrant emergency, urgent, or routine evaluation.",
-  "recommended_specialty": "Suggested primary specialty (e.g. 'General Physician', 'Cardiology', 'Dermatology', etc.)",
   "duration": "Symptom duration in English, e.g. '3 days', 'since this morning', 'acute onset'",
   "severity": "Patient-described severity, e.g. 'unbearable one-sided headache', 'severe cramps', 'moderate'",
   "primary_symptoms": ["list of main complaints translated to English"],
@@ -236,26 +237,36 @@ export async function POST(request: Request) {
 
     const triageResult = checkUrgency(structuredData, patientAgeForTriage, rawTextToStructure);
 
+    // DETERMINISTIC PATIENT-FACING RATIONALE & SPECIALTY MAPPING (Rule-bound, 0 LLM Dependence)
+    const deterministicRationale = getDeterministicClinicalRationale(triageResult.urgency_level, triageResult.red_flags);
+    const deterministicSpecialty = getRecommendedSpecialty(rawTextToStructure, triageResult.red_flags);
+
+    structuredData.clinical_reasoning = deterministicRationale;
+    structuredData.recommended_specialty = deterministicSpecialty;
+
     if (intake_id) {
+      const intakeStatus = triageResult.urgency_level === 'high' ? 'unclaimed_emergency' : 'pending_review';
       await supabase
         .from('intakes')
         .update({
           structured_data: structuredData,
           urgency_level: triageResult.urgency_level,
           red_flags: triageResult.red_flags,
+          status: intakeStatus,
         })
         .eq('id', intake_id);
     }
 
     await supabase.from('audit_logs').insert([
       {
-        intake_id,
+        intake_id: intake_id || null,
         event_type: 'LLM_EXTRACTION',
         actor: 'SYSTEM_AI',
         details: {
           model: modelUsed,
           raw_text: rawTextToStructure,
           structured_output: structuredData,
+          urgency_level: triageResult.urgency_level,
           confidence: structuredData.extraction_confidence,
         },
       },
@@ -267,8 +278,8 @@ export async function POST(request: Request) {
       structured_data: structuredData,
       urgency_level: triageResult.urgency_level,
       red_flags: triageResult.red_flags,
-      clinical_reasoning: structuredData.clinical_reasoning,
-      recommended_specialty: structuredData.recommended_specialty,
+      clinical_reasoning: deterministicRationale,
+      recommended_specialty: deterministicSpecialty,
     });
   } catch (error: any) {
     console.error('Error structuring intake:', error);
