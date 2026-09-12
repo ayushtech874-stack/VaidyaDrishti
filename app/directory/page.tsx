@@ -27,6 +27,7 @@ export default function PublicDirectoryPage() {
   const [selectedCity, setSelectedCity] = useState<string>('Bhagalpur');
   const [customLocation, setCustomLocation] = useState<string>('');
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
+  const [intakeId, setIntakeId] = useState<string | null>(null);
   const [cities, setCities] = useState<string[]>(DEFAULT_CITIES);
   const [clinics, setClinics] = useState<any[]>([]);
   const [doctors, setDoctors] = useState<any[]>([]);
@@ -41,9 +42,9 @@ export default function PublicDirectoryPage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const spec = params.get('specialty');
-      if (spec && isMounted) {
-        setSelectedSpecialty(spec);
-      }
+      const iId = params.get('intake_id');
+      if (spec && isMounted) setSelectedSpecialty(spec);
+      if (iId && isMounted) setIntakeId(iId);
     }
 
     async function fetchDirectory() {
@@ -393,7 +394,7 @@ export default function PublicDirectoryPage() {
                         {/* CTA */}
                         <div className="w-full md:w-auto flex flex-col gap-2 shrink-0">
                           <Link
-                            href={`/directory/doctor/${doc.id}`}
+                            href={`/directory/doctor/${doc.id}${intakeId ? `?intake_id=${intakeId}` : ''}`}
                             className="btn-primary text-xs py-3 px-6 shadow-md text-center"
                           >
                             Book Consultation →

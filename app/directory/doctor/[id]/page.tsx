@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import HeaderNavbar from '@/components/HeaderNavbar';
+import AttachIntakeButton from './AttachIntakeButton';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -10,10 +11,12 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface PageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ intake_id?: string }>;
 }
 
-export default async function DoctorProfilePage({ params }: PageProps) {
+export default async function DoctorProfilePage({ params, searchParams }: PageProps) {
   const { id } = await params;
+  const { intake_id } = await searchParams;
 
   const { data: doctor } = await supabase
     .from('doctors')
@@ -76,6 +79,16 @@ export default async function DoctorProfilePage({ params }: PageProps) {
               <div className="p-4 bg-[var(--color-cream)] border border-[var(--color-border)] rounded-[var(--radius-md)] text-xs text-[var(--color-ink)] italic font-serif">
                 "{doctor.short_bio}"
               </div>
+            )}
+
+            {/* ATTACH PRE-SCREENED INTAKE IF PRESENT */}
+            {intake_id && (
+              <AttachIntakeButton
+                intakeId={intake_id}
+                doctorId={doctor.id}
+                doctorName={doctor.name}
+                clinicId={doctor.clinic_id || doctor.clinics?.id}
+              />
             )}
 
             {/* SIDE-BY-SIDE CONTACT OPTIONS */}
